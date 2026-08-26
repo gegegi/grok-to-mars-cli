@@ -1,19 +1,25 @@
 # Contributing
 
-This repository does **not** accept external pull requests or unsolicited
-patches.
+This repository is an **unofficial personal fork** of
+[xai-org/grok-build](https://github.com/xai-org/grok-build). It is not the
+official Grok Build project.
 
-SpaceXAI develops this software internally. The public tree is published for
-source transparency and local builds under the terms of the Apache License,
-Version 2.0 (see [`LICENSE`](LICENSE)).
+SpaceXAI develops Grok Build internally. The upstream public tree **does not**
+accept external pull requests or unsolicited patches — see
+[upstream `CONTRIBUTING.md`](https://github.com/xai-org/grok-build/blob/main/CONTRIBUTING.md).
+
+This fork is maintained for personal use. Patches are not solicited, and
+there is no guarantee that issues or pull requests will be reviewed.
 
 ## Security reports
 
-Please report security issues through the process described in
-[`SECURITY.md`](SECURITY.md). Do not open a public issue for vulnerabilities.
+Report vulnerabilities in Grok Build through the upstream process described in
+[upstream `SECURITY.md`](https://github.com/xai-org/grok-build/blob/main/SECURITY.md)
+(HackerOne: https://hackerone.com/x).
+
+Do not open a public GitHub issue for vulnerabilities.
 
 ## Licensing of this source
 
-By downloading or using this source, you agree that your use is governed by
-the Apache License, Version 2.0. No contributor license agreement is offered
-because external contributions are not accepted.
+First-party code remains under the Apache License, Version 2.0 (see
+[`LICENSE`](LICENSE)). Copyright for the original work remains with SpaceXAI.

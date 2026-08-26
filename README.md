@@ -1,46 +1,35 @@
-<div align="center">
+# Grok To Mars (`gtm`)
 
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://media.x.ai/v1/website/spacexai-symbol-white-transparent-0c31957f.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png">
-    <img alt="SpaceXAI logo" src="https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png" width="96">
-  </picture>
-  <br>
-  Grok Build (<code>grok</code>)
-</h1>
+> [!IMPORTANT]
+> This is an **unofficial personal fork** of SpaceXAI's Grok Build CLI.
+> It is **not** an official SpaceXAI or xAI product, and it is **not** the
+> [xai-org/grok-build](https://github.com/xai-org/grok-build) repository.
+>
+> Official product: [x.ai/cli](https://x.ai/cli) ·
+> Official source: [github.com/xai-org/grok-build](https://github.com/xai-org/grok-build) ·
+> Official docs: [docs.x.ai/build](https://docs.x.ai/build/overview)
 
-**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a
-full-screen TUI that understands your codebase, edits files, executes shell
-commands, searches the web, and manages long-running tasks — interactively,
-headlessly for scripting/CI, or embedded in editors via the Agent Client
-Protocol (ACP).
+Grok To Mars is a source-built coding-agent TUI based on the public
+[Grok Build](https://github.com/xai-org/grok-build) tree. It understands a
+codebase, edits files, runs shell commands, and can run interactively,
+headlessly, or over ACP — the same harness as upstream, with a few local
+changes.
 
-[Installing the released binary](#installing-the-released-binary) ·
+This fork installs as **`gtm`**. It is meant to sit **next to** an official
+`grok` install, not replace it.
+
+[Install `gtm`](#install-gtm) ·
+[Official Grok Build](#official-grok-build) ·
+[What this fork changes](#what-this-fork-changes) ·
+[Branches](#branches) ·
 [Building from source](#building-from-source) ·
 [Documentation](#documentation) ·
-[Repository layout](#repository-layout) ·
-[Development](#development) ·
-[Contributing](#contributing) ·
 [License](#license)
 
-![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
+## Official Grok Build
 
-**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**
-
-This repository contains the Rust source for the `grok` CLI/TUI and its agent
-runtime. It is synced periodically from the SpaceXAI monorepo.
-
-A small `SOURCE_REV` file at the root records the full monorepo commit SHA
-for the version of the code present in this tree.
-
-</div>
-
----
-
-## Installing the released binary
-
-Prebuilt binaries are published for macOS, Linux, and Windows:
+If you want the released Grok Build CLI, **do not install this repository**.
+Use SpaceXAI's installer and the upstream tree:
 
 ```sh
 curl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash
@@ -48,8 +37,62 @@ irm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell
 grok --version
 ```
 
-See the [changelog](https://x.ai/build/changelog) for the latest fixes,
-features, and improvements in each release.
+Upstream README, changelog, and source:
+
+- [xai-org/grok-build](https://github.com/xai-org/grok-build)
+- [x.ai/cli](https://x.ai/cli)
+- [changelog](https://x.ai/build/changelog)
+
+| | Official Grok Build | This fork (Grok To Mars) |
+| --- | --- | --- |
+| Command | `grok` | `gtm` |
+| Typical path | `~/.grok/bin/grok` | `~/.local/bin/gtm` |
+| Source | [xai-org/grok-build](https://github.com/xai-org/grok-build) | this repository |
+| Install | [x.ai/cli](https://x.ai/cli) | [`scripts/install-gtm.sh`](scripts/install-gtm.sh) |
+| Updates | `grok update` | rebuild with `scripts/install-gtm.sh` (`gtm update` is disabled on purpose) |
+
+`gtm` still authenticates against the same Grok services as the official CLI.
+
+## What this fork changes
+
+Relative to upstream Grok Build, this tree currently adds:
+
+- Turn-scoped reasoning-effort commands: `/low`, `/medium`, `/high`, `/xhigh`
+  (one prompt on the current model; session `/effort` is unchanged)
+- A second cargo binary named `gtm`, installed beside official `grok`
+- A few user-facing labels that say **Grok To Mars** instead of Grok Build
+
+Everything else is Grok Build, merged from upstream. The root `SOURCE_REV`
+file records the monorepo commit SHA of the last official sync.
+
+## Install `gtm`
+
+Requirements are the same as [building from source](#building-from-source).
+
+```sh
+git clone https://github.com/gegegi/grok-to-mars-cli.git
+cd grok-to-mars-cli
+git checkout custom
+scripts/install-gtm.sh
+gtm --version
+```
+
+The script builds a release `gtm` and copies it to `~/.local/bin/gtm`
+(override with `GTM_BIN_DIR`). It refuses to write into `~/.grok/bin`, which
+belongs to the official installer.
+
+On first launch, `gtm` opens a browser to authenticate — see the upstream
+[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).
+
+## Branches
+
+| Branch | What it is |
+| --- | --- |
+| `main` | Mirror of official [`xai-org/grok-build`](https://github.com/xai-org/grok-build) `main` (no Grok To Mars changes) |
+| `custom` | **Default branch.** This fork's line: `gtm`, branding, and extra commands |
+
+Feature branches are merged into `custom` and then deleted. Official updates
+are merged from `upstream/main` into `custom` (not rebased).
 
 ## Building from source
 
@@ -73,48 +116,42 @@ Requirements:
   and not currently tested from this tree.
 
 ```sh
-cargo run -p xai-grok-pager-bin              # build + launch the TUI
-cargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager
-cargo check -p xai-grok-pager-bin            # fast validation
-scripts/install-gtm.sh                       # install this fork as `gtm` (does not replace `grok`)
+cargo run -p xai-grok-pager-bin --bin gtm     # build + launch this fork
+cargo build -p xai-grok-pager-bin --release --bin gtm
+scripts/install-gtm.sh                        # install as ~/.local/bin/gtm
+cargo check -p xai-grok-pager-bin             # fast validation
 ```
 
-The cargo artifact is named `xai-grok-pager`. Official installs ship that
-product as `grok` in `~/.grok/bin`. This fork installs a **separate**
-command, `gtm`, into `~/.local/bin` so the two stay side by side:
-
-| Command | What runs |
-| --- | --- |
-| `grok` | Already-installed Grok Build CLI (`~/.grok/bin/grok`) |
-| `gtm` | This repository's CLI (`scripts/install-gtm.sh`) |
-
-`gtm` does not run `grok update` (that would rewrite the official binary).
-Rebuild with `scripts/install-gtm.sh`. Override the install directory with
-`GTM_BIN_DIR`. On first launch it opens your browser to authenticate — see the
-[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).
+The cargo artifact names are still `xai-grok-pager` (upstream) and `gtm`
+(this fork). Running the `xai-grok-pager` target does not replace
+`~/.grok/bin/grok`.
 
 ## Documentation
 
-Full online documentation is available at
-[docs.x.ai/build/overview](https://docs.x.ai/build/overview).
+Behavior that is not listed under [What this fork changes](#what-this-fork-changes)
+matches official Grok Build. Use the upstream docs, substituting `gtm` for
+`grok` where you are running this binary:
 
-The user guide ships with the pager crate:
-[`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)
-— getting started, keyboard shortcuts, slash commands, configuration, theming,
-MCP servers, skills, plugins, hooks, headless mode, sandboxing, and more.
+- [docs.x.ai/build/overview](https://docs.x.ai/build/overview)
+- User guide in this tree:
+  [`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)
+
+Turn-scoped effort commands are documented in
+[`04-slash-commands.md`](crates/codegen/xai-grok-pager/docs/user-guide/04-slash-commands.md).
 
 ## Repository layout
 
 | Path | Contents |
 |------|----------|
-| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds the `xai-grok-pager` binary |
+| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds `xai-grok-pager` and `gtm` |
 | `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |
 | `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |
 | `crates/codegen/xai-grok-tools` | Tool implementations (terminal, file edit, search, ...) |
 | `crates/codegen/xai-grok-workspace` | Host filesystem, VCS, execution, checkpoints |
 | `crates/codegen/...` | The rest of the CLI crate closure (config, MCP, markdown, sandbox, ...) |
 | `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |
-| `third_party/` | Vendored upstream source (Mermaid diagram stack) — see below |
+| `third_party/` | Vendored upstream source (Mermaid diagram stack) |
+| `scripts/install-gtm.sh` | Install this fork as `gtm` without touching official `grok` |
 
 > [!IMPORTANT]
 > The root `Cargo.toml` (workspace members, dependency versions, lints,
@@ -132,13 +169,22 @@ cargo fmt --all               # rustfmt.toml at the repo root
 
 ## Contributing
 
-> [!NOTE]
-> External contributions are not accepted. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+This repository is an unofficial fork. SpaceXAI's upstream tree **does not**
+accept external pull requests — see
+[`xai-org/grok-build` CONTRIBUTING](https://github.com/xai-org/grok-build/blob/main/CONTRIBUTING.md).
+
+This fork is maintained for personal use. There is no support SLA, and
+patches are not solicited.
+
+Security issues in Grok Build itself should be reported through the upstream
+[security policy](https://github.com/xai-org/grok-build/blob/main/SECURITY.md)
+(HackerOne). Do not open a public GitHub issue for vulnerabilities.
 
 ## License
 
-First-party code in this repository is licensed under the **Apache License,
-Version 2.0** — see [`LICENSE`](LICENSE).
+First-party code in the upstream Grok Build tree is licensed under the
+**Apache License, Version 2.0** — see [`LICENSE`](LICENSE). This fork keeps
+that license. Copyright for the original work remains with SpaceXAI.
 
 Third-party and vendored code remains under its original licenses. See:
 
