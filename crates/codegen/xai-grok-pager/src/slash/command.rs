@@ -72,6 +72,9 @@ pub enum CommandResult {
         /// pane (replaced when the real `ScheduledTaskCreated` notification
         /// arrives from the shell).
         scheduled_task_preview: Option<ScheduledTaskPreview>,
+        /// Turn-scoped reasoning effort for this prompt only. Does not change
+        /// the session `/effort`. `None` for ordinary skill/command injects.
+        reasoning_effort: Option<xai_grok_shell::sampling::types::ReasoningEffort>,
     },
     /// Command text should be sent as a regular prompt. The shell resolves it.
     ///

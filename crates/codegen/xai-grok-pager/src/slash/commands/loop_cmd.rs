@@ -141,6 +141,7 @@ impl SlashCommand for LoopCommand {
                 next_fire_at: None,
                 tag: "loop".into(),
             }),
+            reasoning_effort: None,
         }
     }
 }

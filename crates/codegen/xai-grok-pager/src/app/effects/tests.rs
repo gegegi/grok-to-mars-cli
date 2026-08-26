@@ -97,7 +97,7 @@ fn plain_prompt_block_no_meta_when_ranges_empty() {
 /// (the shell threads the latter into `prompt_submitted.screen_mode`).
 #[test]
 fn prompt_request_meta_stamps_screen_mode() {
-    let meta = prompt_request_meta("p-1", Some("minimal"));
+    let meta = prompt_request_meta("p-1", Some("minimal"), None);
     assert_eq!(
             meta,
             serde_json::json!({ "promptId": "p-1", "screenMode": "minimal" })
@@ -107,8 +107,24 @@ fn prompt_request_meta_stamps_screen_mode() {
 /// omitted — the legacy `{"promptId": …}` wire shape stays byte-identical.
 #[test]
 fn prompt_request_meta_omits_screen_mode_when_unset() {
-    let meta = prompt_request_meta("p-2", None);
+    let meta = prompt_request_meta("p-2", None, None);
     assert_eq!(meta, serde_json::json!({ "promptId": "p-2" }));
+}
+#[test]
+fn prompt_request_meta_stamps_turn_reasoning_effort() {
+    let meta = prompt_request_meta(
+        "p-3",
+        Some("inline"),
+        Some(xai_grok_shell::sampling::types::ReasoningEffort::Xhigh),
+    );
+    assert_eq!(
+        meta,
+        serde_json::json!({
+            "promptId": "p-3",
+            "screenMode": "inline",
+            "reasoningEffort": "xhigh",
+        })
+    );
 }
 /// Text-only interjections must omit the `content` key entirely — the
 /// legacy `x.ai/interject` wire shape stays byte-identical.

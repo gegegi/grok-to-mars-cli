@@ -9,6 +9,7 @@ use crate::extensions::notification::SessionNotification;
 use crate::session::signals::TurnDeltaSnapshot;
 use agent_client_protocol as acp;
 use tokio::sync::oneshot;
+use xai_grok_sampling_types::ReasoningEffort;
 /// Structured context for a cancelled turn, replacing stringly-typed JSON.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct CancellationContext {
@@ -319,6 +320,10 @@ pub enum SessionCommand {
         /// caller so it can use the fully-rendered prompt for metadata.json without
         /// re-parsing. The session sends on this channel right after parsing.
         parsed_prompt_tx: Option<oneshot::Sender<ParsedPromptInfo>>,
+        /// Turn-scoped reasoning effort from `PromptRequest._meta.reasoningEffort`.
+        /// Applied to this turn's model samples only; does not persist as the
+        /// session `/effort`.
+        reasoning_effort: Option<ReasoningEffort>,
     },
     SessionMode {
         session_mode: acp::SessionModeId,

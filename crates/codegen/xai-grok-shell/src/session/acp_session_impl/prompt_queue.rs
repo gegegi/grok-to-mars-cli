@@ -28,6 +28,7 @@ pub(crate) struct QueueInputRequest {
     pub(crate) respond_to: oneshot::Sender<PromptTurnResult>,
     pub(crate) persist_ack: Option<oneshot::Sender<()>>,
     pub(crate) parsed_prompt_tx: Option<oneshot::Sender<ParsedPromptInfo>>,
+    pub(crate) reasoning_effort: Option<xai_grok_sampling_types::ReasoningEffort>,
 }
 
 impl QueueInputRequest {
@@ -71,6 +72,7 @@ impl QueueInputRequest {
             respond_to,
             persist_ack: None,
             parsed_prompt_tx: None,
+            reasoning_effort: None,
         }
     }
 }
@@ -100,6 +102,7 @@ impl SessionActor {
             respond_to,
             persist_ack,
             parsed_prompt_tx,
+            reasoning_effort,
         } = request;
         tracing::info!("queueing prompt: {prompt_id}");
         let queue_depth = { self.state.lock().await.pending_inputs.len() };
@@ -280,6 +283,7 @@ impl SessionActor {
             queue_meta,
             queue_mutation_policy,
             send_now: false,
+            reasoning_effort,
         };
 
         // Use `running_prompt_id()` not `current_prompt_id` (cleared while front
@@ -1143,7 +1147,8 @@ impl SessionActor {
             is_plain_prompt: is_plain_prompt
                 && has_text
                 && !non_text_non_image
-                && item.tool_overrides_update.is_none(),
+                && item.tool_overrides_update.is_none()
+                && item.reasoning_effort.is_none(),
             is_synthetic: item.input_origin.is_synthetic(),
             is_expanded_skill,
             is_bash,

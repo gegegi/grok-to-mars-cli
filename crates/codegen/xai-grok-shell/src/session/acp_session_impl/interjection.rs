@@ -89,6 +89,7 @@ impl SessionActor {
             // Send-now semantics (see doc): a later real send-now must not
             // leapfrog this fallback in `queue_input`'s FIFO scan.
             send_now: front,
+            reasoning_effort: None,
         };
         let mut state = self.state.lock().await;
         if front {

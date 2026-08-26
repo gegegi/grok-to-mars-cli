@@ -813,7 +813,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                 trace_config_template: std::cell::RefCell::new(None),
             });
             let _ = actor
-                .process_conversation_turn_with_recovery("disabled-memory", None, None, None)
+                .process_conversation_turn_with_recovery("disabled-memory", None, None, None, None)
                 .await;
             let (flush_tx, flush_rx) = tokio::sync::oneshot::channel();
             persistence
@@ -1169,6 +1169,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                         queue_meta: None,
                         queue_mutation_policy: QueueMutationPolicy::hidden(),
                         send_now: false,
+            reasoning_effort: None,
                     });
             }
             let _ = actor
@@ -1695,6 +1696,7 @@ async fn cancel_running_task_interactive_preserves_queued_work() {
             }),
             queue_mutation_policy: QueueMutationPolicy::editable(),
             send_now: false,
+            reasoning_effort: None,
         };
         (item, rx)
     }
@@ -2254,6 +2256,7 @@ async fn cancel_resolves_front_when_running_task_is_none() {
             }),
             queue_mutation_policy: QueueMutationPolicy::editable(),
             send_now: false,
+            reasoning_effort: None,
         };
         (item, rx)
     }
@@ -2841,6 +2844,7 @@ async fn cancel_keeps_remaining_queued_prompts_visible_to_clients() {
             }),
             queue_mutation_policy: QueueMutationPolicy::editable(),
             send_now: false,
+            reasoning_effort: None,
         }
     }
     let local = tokio::task::LocalSet::new();

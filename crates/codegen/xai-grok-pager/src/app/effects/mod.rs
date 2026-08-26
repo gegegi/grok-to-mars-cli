@@ -38,6 +38,7 @@ use actions::PermissionModePersist;
 use agent::AgentId;
 use crate::unified_log as ulog;
 use xai_grok_shell::sampling::error::http_status_from_error;
+use xai_grok_shell::sampling::types::{REASONING_EFFORT_META_KEY, ReasoningEffort};
 use xai_grok_shell::session::{ExtMethodResult, SessionInfoResponse};
 fn apply_permission_mode_override(
     meta: &mut Option<acp::Meta>,
@@ -1135,6 +1136,7 @@ pub(crate) fn execute(
             text,
             prompt_id,
             skill_token_ranges,
+            reasoning_effort,
         } => {
             let tx = acp_tx.clone();
             let screen_mode = session_flags.screen_mode_label;
@@ -1156,7 +1158,7 @@ pub(crate) fn execute(
                     let prompt = vec![plain_prompt_content_block(text, &skill_token_ranges)];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
-                            prompt_request_meta(&prompt_id, screen_mode)
+                            prompt_request_meta(&prompt_id, screen_mode, reasoning_effort)
                                 .as_object()
                                 .cloned(),
                         );
@@ -1188,8 +1190,8 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::SendPromptBlocks { agent_id, session_id, blocks, prompt_id }
-        | Effect::SendPromptNow { agent_id, session_id, blocks, prompt_id } => {
+        Effect::SendPromptBlocks { agent_id, session_id, blocks, prompt_id, reasoning_effort }
+        | Effect::SendPromptNow { agent_id, session_id, blocks, prompt_id, reasoning_effort } => {
             let send_now = effect_is_send_now;
             let tx = acp_tx.clone();
             let screen_mode = session_flags.screen_mode_label;
@@ -1208,7 +1210,7 @@ pub(crate) fn execute(
                         ),
                     );
                     let send_start = std::time::Instant::now();
-                    let mut meta = prompt_request_meta(&prompt_id, screen_mode);
+                    let mut meta = prompt_request_meta(&prompt_id, screen_mode, reasoning_effort);
                     if send_now && let Some(map) = meta.as_object_mut() {
                         map.insert("sendNow".into(), serde_json::Value::Bool(true));
                     }
@@ -1282,7 +1284,7 @@ pub(crate) fn execute(
                 )];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
-                            prompt_request_meta(&prompt_id, screen_mode)
+                            prompt_request_meta(&prompt_id, screen_mode, None)
                                 .as_object()
                                 .cloned(),
                         );
@@ -1568,7 +1570,7 @@ pub(crate) fn execute(
                     let prompt = vec![plain_prompt_content_block(text, &skill_token_ranges)];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
-                            prompt_request_meta(&prompt_id, screen_mode)
+                            prompt_request_meta(&prompt_id, screen_mode, None)
                                 .as_object()
                                 .cloned(),
                         );
@@ -4864,11 +4866,18 @@ fn plain_prompt_content_block(
 fn prompt_request_meta(
     prompt_id: &str,
     screen_mode: Option<&'static str>,
+    reasoning_effort: Option<ReasoningEffort>,
 ) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     map.insert("promptId".into(), serde_json::Value::String(prompt_id.into()));
     if let Some(mode) = screen_mode {
         map.insert("screenMode".into(), serde_json::Value::String(mode.into()));
+    }
+    if let Some(effort) = reasoning_effort {
+        map.insert(
+            REASONING_EFFORT_META_KEY.into(),
+            serde_json::Value::String(effort.as_str().into()),
+        );
     }
     serde_json::Value::Object(map)
 }

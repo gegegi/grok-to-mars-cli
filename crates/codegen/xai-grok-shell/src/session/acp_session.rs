@@ -258,6 +258,8 @@ pub(crate) struct InputItem {
     /// land behind earlier still-queued send-now prompts so stacked sends
     /// (e.g. during a goal turn, which promotes but never cancels) run FIFO.
     pub(crate) send_now: bool,
+    /// Turn-scoped reasoning effort from `session/prompt` `_meta.reasoningEffort`.
+    pub(crate) reasoning_effort: Option<xai_grok_sampling_types::ReasoningEffort>,
 }
 use crate::session::commands::{NotificationPriority, NotificationSource};
 /// Resolved tool names for goal-mode prompts.

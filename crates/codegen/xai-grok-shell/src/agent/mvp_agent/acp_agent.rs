@@ -1117,6 +1117,7 @@ impl acp::Agent for MvpAgent {
             .and_then(|m| m.get("sendNow"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        let reasoning_effort = parse_reasoning_effort_meta(arguments.meta.as_ref());
         if let Some(ctx) = trace_context.clone() {
             let (tx, parsed_prompt_rx) = oneshot::channel::<ParsedPromptInfo>();
             parsed_prompt_tx = Some(tx);
@@ -1166,9 +1167,8 @@ impl acp::Agent for MvpAgent {
                 client_source,
                 client_version,
                 model: model.to_owned(),
-                reasoning_effort: ctx
-                    .session_handle
-                    .reasoning_effort
+                reasoning_effort: reasoning_effort
+                    .or(ctx.session_handle.reasoning_effort)
                     .map(|e| e.as_str().to_string()),
                 experiment_id: None,
                 host_os: std::env::consts::OS.to_string(),
@@ -1300,6 +1300,7 @@ impl acp::Agent for MvpAgent {
                 respond_to: tx,
                 persist_ack: None,
                 parsed_prompt_tx,
+                reasoning_effort,
             })
             .map_err(|e| {
                 acp::Error::internal_error()

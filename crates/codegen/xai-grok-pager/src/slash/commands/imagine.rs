@@ -51,6 +51,7 @@ impl SlashCommand for ImagineCommand {
             ))],
             display_as_skill: false,
             scheduled_task_preview: None,
+            reasoning_effort: None,
         }
     }
 }

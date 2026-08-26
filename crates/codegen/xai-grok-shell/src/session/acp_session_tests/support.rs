@@ -514,6 +514,7 @@ pub(crate) fn user_item_with_rx(
         }),
         queue_mutation_policy: QueueMutationPolicy::editable(),
         send_now: false,
+        reasoning_effort: None,
     };
     (item, rx)
 }
@@ -550,6 +551,7 @@ pub(crate) fn input_with_origin_rx(
         queue_meta: None,
         queue_mutation_policy: QueueMutationPolicy::hidden(),
         send_now: false,
+        reasoning_effort: None,
     };
     (item, rx)
 }

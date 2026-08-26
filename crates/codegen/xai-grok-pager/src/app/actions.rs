@@ -1607,6 +1607,8 @@ pub enum Effect {
         /// offsets index the block's `text` displayed verbatim — never
         /// combined with a `displayText` override.
         skill_token_ranges: Vec<std::ops::Range<usize>>,
+        /// Turn-scoped reasoning effort for this `session/prompt` only.
+        reasoning_effort: Option<ReasoningEffort>,
     },
     /// Send a direct bash command to the agent (with typed PromptBlockMeta).
     SendBashCommand {
@@ -1729,6 +1731,8 @@ pub enum Effect {
         blocks: Vec<acp::ContentBlock>,
         /// See [`Effect::SendPrompt::prompt_id`].
         prompt_id: String,
+        /// See [`Effect::SendPrompt::reasoning_effort`].
+        reasoning_effort: Option<ReasoningEffort>,
     },
     /// Cancel-and-send: `session/prompt` stamped with `_meta.sendNow`, so the
     /// shell cancels the running turn and runs this prompt next (background
@@ -1740,6 +1744,8 @@ pub enum Effect {
         blocks: Vec<acp::ContentBlock>,
         /// See [`Effect::SendPrompt::prompt_id`].
         prompt_id: String,
+        /// See [`Effect::SendPrompt::reasoning_effort`].
+        reasoning_effort: Option<ReasoningEffort>,
     },
     /// Toggle plan mode — fire-and-forget signal to the shell.
     TogglePlanMode { session_id: acp::SessionId },

@@ -704,6 +704,7 @@ pub(super) fn dispatch_send_prompt_inner(
                 prompt_blocks,
                 display_as_skill,
                 scheduled_task_preview,
+                reasoning_effort,
             } => {
                 // Enqueue with display text for scrollback but wire_blocks
                 // for the actual prompt sent to the model. Leading skill
@@ -716,6 +717,7 @@ pub(super) fn dispatch_send_prompt_inner(
                     .push_back(crate::app::agent::QueuedPrompt {
                         wire_blocks: Some(prompt_blocks),
                         display_as_skill,
+                        reasoning_effort,
                         ..crate::app::agent::QueuedPrompt::plain(
                             id,
                             display_text,
@@ -904,6 +906,7 @@ pub(super) fn dispatch_send_prompt_inner(
                 text,
                 prompt_id,
                 skill_token_ranges,
+                reasoning_effort: None,
             }];
         }
 

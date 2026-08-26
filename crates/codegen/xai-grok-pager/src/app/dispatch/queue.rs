@@ -474,6 +474,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
             agent.scrollback.follow_new_turn(Some(prompt_idx), flip);
 
             let combined_segs = queued.combined_texts.clone();
+            let reasoning_effort = queued.reasoning_effort;
             let effects = if let Some(mut blocks) = queued.wire_blocks {
                 // Skill injection: send structured blocks.
                 // Annotate the first text block's meta with the display text
@@ -503,6 +504,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                     session_id,
                     blocks,
                     prompt_id,
+                    reasoning_effort,
                 }]
             } else if !queued.images.is_empty() {
                 // Image-bearing prompt: build text + image content blocks.
@@ -525,6 +527,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                     session_id,
                     blocks,
                     prompt_id,
+                    reasoning_effort,
                 }]
             } else if multi {
                 // Stamp combinedDisplayTexts so reload paints multi-bubble. No
@@ -538,6 +541,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                     session_id,
                     blocks: vec![acp::ContentBlock::Text(tb)],
                     prompt_id,
+                    reasoning_effort,
                 }]
             } else {
                 // Normal prompt: send text as-is.
@@ -547,6 +551,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                     text: queued.text,
                     prompt_id,
                     skill_token_ranges: queued.skill_token_ranges,
+                    reasoning_effort,
                 }]
             };
             QueueDrain {
@@ -627,6 +632,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                     session_id,
                     blocks,
                     prompt_id,
+                    reasoning_effort: None,
                 }],
                 page_flip_entry: flip.then_some(prompt_entry_id),
             }

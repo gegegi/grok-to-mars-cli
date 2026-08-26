@@ -142,6 +142,7 @@ impl SlashCommand for AcpSlashCommand {
                 prompt_blocks: vec![acp::ContentBlock::Text(acp::TextContent::new(text))],
                 display_as_skill: true,
                 scheduled_task_preview: None,
+                reasoning_effort: None,
             },
         }
     }

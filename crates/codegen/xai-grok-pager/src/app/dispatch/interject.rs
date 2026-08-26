@@ -173,6 +173,7 @@ pub(super) fn dispatch_send_prompt_now(
         session_id,
         blocks,
         prompt_id,
+        reasoning_effort: None,
     }]
 }
 

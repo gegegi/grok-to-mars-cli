@@ -490,6 +490,7 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "gboom",
     "guides",
     "help",
+    "high",
     "history",
     "home",
     "hooks",
@@ -507,9 +508,11 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "logout",
     "log",
     "loop",
+    "low",
     "m",
     "marketplace",
     "mcps",
+    "medium",
     "minimal",
     "ml",
     "model",
@@ -562,6 +565,7 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "welcome",
     "workflow",
     "workflows",
+    "xhigh",
     "yolo",
 ];
 /// Unconditional reservations for `grok inspect`. Live advertising still

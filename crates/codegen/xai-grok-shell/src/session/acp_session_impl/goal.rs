@@ -1430,6 +1430,7 @@ impl SessionActor {
                 queue_meta: None,
                 queue_mutation_policy: QueueMutationPolicy::hidden(),
                 send_now: false,
+                reasoning_effort: None,
             });
         }
         if let Some(rec) = plan.strategy_rec.as_deref() {

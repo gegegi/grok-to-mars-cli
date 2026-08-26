@@ -1322,6 +1322,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
                     text: "/memory".to_string(),
                     prompt_id: uuid::Uuid::new_v4().to_string(),
                     skill_token_ranges: Vec::new(),
+                    reasoning_effort: None,
                 }];
             }
             vec![]

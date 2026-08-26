@@ -275,6 +275,7 @@ impl SessionActor {
             json_schema,
             persist_ack,
             parsed_prompt_tx,
+            reasoning_effort: None,
         })
         .await
     }
@@ -308,6 +309,7 @@ impl SessionActor {
             json_schema,
             persist_ack,
             parsed_prompt_tx,
+            reasoning_effort: turn_reasoning_effort,
         } = request;
         let prompt_id = prompt_id.as_str();
         let handle_prompt_start = std::time::Instant::now();
@@ -926,6 +928,7 @@ impl SessionActor {
                         round_trace.take(),
                         round_artifact.take(),
                         json_schema.clone(),
+                        turn_reasoning_effort,
                     )
                     .await;
                 if !matches!(round, Ok(TurnOutcome::Completed { .. })) {
@@ -1614,6 +1617,7 @@ impl SessionActor {
         trace_gcs_config: Option<crate::session::repo_changes::TraceExportConfig>,
         artifact_tracker: Option<crate::upload::manifest::ArtifactTracker>,
         json_schema: Option<serde_json::Value>,
+        turn_reasoning_effort: Option<xai_grok_sampling_types::ReasoningEffort>,
     ) -> Result<TurnOutcome, acp::Error> {
         let _ = self.compaction.auto_compact_suppressed.compare_exchange(
             crate::session::compaction_config::SUPPRESS_TURN,
@@ -1631,6 +1635,7 @@ impl SessionActor {
                         trace_gcs_config,
                         artifact_tracker.as_ref(),
                         json_schema,
+                        turn_reasoning_effort,
                     )
                     .await;
             }
@@ -1644,6 +1649,7 @@ impl SessionActor {
                         trace_gcs_config,
                         artifact_tracker.as_ref(),
                         json_schema,
+                        turn_reasoning_effort,
                     )
                     .await;
             }
@@ -1656,6 +1662,7 @@ impl SessionActor {
                 trace_gcs_config.clone(),
                 artifact_tracker.as_ref(),
                 json_schema.clone(),
+                turn_reasoning_effort,
             )
             .await;
         if matches!(
@@ -1723,6 +1730,7 @@ impl SessionActor {
                     trace_gcs_config.clone(),
                     artifact_tracker.as_ref(),
                     None,
+                    turn_reasoning_effort,
                 )
                 .await;
             if matches!(
@@ -2033,6 +2041,7 @@ impl SessionActor {
         trace_gcs_config: Option<crate::session::repo_changes::TraceExportConfig>,
         artifact_tracker: Option<&crate::upload::manifest::ArtifactTracker>,
         json_schema: Option<serde_json::Value>,
+        turn_reasoning_effort: Option<xai_grok_sampling_types::ReasoningEffort>,
     ) -> Result<TurnOutcome, acp::Error> {
         let conv_turn_start = std::time::Instant::now();
         let conv_turn_clock = DualClock::now();
@@ -2063,7 +2072,7 @@ impl SessionActor {
         if let Some(cfg) = self.chat_state_handle.get_sampling_config().await {
             let span = tracing::Span::current();
             span.record("model_id", cfg.model.as_str());
-            if let Some(effort) = cfg.reasoning_effort {
+            if let Some(effort) = turn_reasoning_effort.or(cfg.reasoning_effort) {
                 span.record("effort", effort.as_str());
             }
         }
@@ -2318,6 +2327,9 @@ impl SessionActor {
                 })),
             );
             let mut request = request;
+            if let Some(effort) = turn_reasoning_effort {
+                request.reasoning_effort = Some(effort);
+            }
             request.x_grok_session_id = Some(self.session_info.id.to_string());
             request.x_grok_turn_idx =
                 Some(self.chat_state_handle.get_prompt_index().await.to_string());

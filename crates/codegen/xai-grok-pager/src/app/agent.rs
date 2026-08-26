@@ -77,6 +77,9 @@ pub struct QueuedPrompt {
     pub chip_elements: Vec<ChipElement>,
     /// Combined-turn display segments (len ≥ 2); drain paints one bubble each.
     pub combined_texts: Vec<String>,
+    /// Turn-scoped reasoning effort for this prompt only. Does not change the
+    /// session `/effort`. `None` for ordinary prompts.
+    pub reasoning_effort: Option<ReasoningEffort>,
 }
 impl QueuedPrompt {
     /// Base row with every optional field at its default. Sites needing
@@ -96,6 +99,7 @@ impl QueuedPrompt {
             human_schedule: None,
             chip_elements: Vec::new(),
             combined_texts: Vec::new(),
+            reasoning_effort: None,
         }
     }
     /// Whether the wire payload is exactly the display text.
@@ -1110,7 +1114,8 @@ impl AgentSession {
                 id: id.as_str(),
                 is_plain_prompt: p.kind == QueueEntryKind::Prompt,
                 is_synthetic: false,
-                is_expanded_skill: !p.wire_matches_display(),
+                is_expanded_skill: !p.wire_matches_display()
+                    || p.reasoning_effort.is_some(),
                 is_bash: p.kind == QueueEntryKind::BashCommand,
                 has_images: !p.images.is_empty(),
                 text: p.text.as_str(),

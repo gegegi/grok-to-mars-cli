@@ -115,6 +115,15 @@ Set reasoning effort on the **current** model without reselecting it. Levels are
 /effort high
 ```
 
+### `/low`, `/medium`, `/high`, `/xhigh`
+
+Send **this prompt only** at that reasoning effort on the current model. The session `/effort` is unchanged; the next ordinary prompt uses the session default again. The whole agentic turn (tool loops included) uses the override. The model must offer that level — `/xhigh` errors on models that only list `high`/`medium`/`low`.
+
+```
+/high find the race in the queue drain
+/xhigh why does this fail only under load
+```
+
 ### `/always-approve` and `/auto`
 
 Both are real toggles for the permission mode: they stay in the menu, and running the mode you're already in turns it back off.

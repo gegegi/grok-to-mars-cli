@@ -82,6 +82,7 @@ pub(super) async fn run_one_turn_attempt(
         respond_to: prompt_tx,
         persist_ack: None,
         parsed_prompt_tx: None,
+        reasoning_effort: None,
     });
     let mut turn_token_totals = None;
     let mut cancellation_may_hide_usage = false;

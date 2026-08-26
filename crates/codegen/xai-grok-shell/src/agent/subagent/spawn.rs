@@ -477,6 +477,7 @@ pub(crate) fn inject_subagent_completed_prompt(params: InjectParams) {
             respond_to,
             persist_ack: None,
             parsed_prompt_tx: None,
+            reasoning_effort: None,
         })
         .is_err()
     {

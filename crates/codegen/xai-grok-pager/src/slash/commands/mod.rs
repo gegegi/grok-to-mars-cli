@@ -63,6 +63,7 @@ pub mod theme;
 pub mod timeline;
 pub mod timestamps;
 pub mod toggle_mouse_reporting;
+pub mod turn_effort;
 pub mod transcript;
 pub mod tutorial;
 pub mod usage;
@@ -89,6 +90,18 @@ pub fn builtin_commands() -> Vec<Arc<dyn SlashCommand>> {
         Arc::new(new::NewCommand),
         // Per turn.
         Arc::new(effort::EffortCommand),
+        Arc::new(turn_effort::TurnEffortCommand::new(
+            xai_grok_shell::sampling::types::ReasoningEffort::Xhigh,
+        )),
+        Arc::new(turn_effort::TurnEffortCommand::new(
+            xai_grok_shell::sampling::types::ReasoningEffort::High,
+        )),
+        Arc::new(turn_effort::TurnEffortCommand::new(
+            xai_grok_shell::sampling::types::ReasoningEffort::Medium,
+        )),
+        Arc::new(turn_effort::TurnEffortCommand::new(
+            xai_grok_shell::sampling::types::ReasoningEffort::Low,
+        )),
         Arc::new(model::ModelCommand),
         Arc::new(context::ContextCommand),
         Arc::new(compact::CompactCommand),
@@ -220,6 +233,11 @@ mod tests {
         assert!(reg.get("new").is_some());
         assert!(reg.get("compact").is_some());
         assert!(reg.get("model").is_some());
+        assert!(reg.get("effort").is_some());
+        assert!(reg.get("high").is_some());
+        assert!(reg.get("xhigh").is_some());
+        assert!(reg.get("medium").is_some());
+        assert!(reg.get("low").is_some());
         assert!(reg.get("home").is_some());
         assert!(reg.get("view-plan").is_some());
         reg.set_available_tools(std::collections::HashSet::from([

@@ -282,6 +282,7 @@ impl SessionActor {
             input_origin,
             running_display,
             tool_overrides_update,
+            reasoning_effort,
         ) = {
             let Some(front) = state.pending_inputs.front_mut() else {
                 return;
@@ -303,6 +304,7 @@ impl SessionActor {
                 front.input_origin.clone(),
                 running_display,
                 front.tool_overrides_update.take(),
+                front.reasoning_effort,
             )
         };
         self.apply_tool_overrides_update(tool_overrides_update);
@@ -373,6 +375,7 @@ impl SessionActor {
                 json_schema,
                 persist_ack,
                 parsed_prompt_tx,
+                reasoning_effort,
             },
             completion_tx,
         ));
@@ -722,6 +725,7 @@ impl SessionActor {
             queue_meta: None,
             queue_mutation_policy: QueueMutationPolicy::hidden(),
             send_now: false,
+            reasoning_effort: None,
         });
 
         tracing::info!(

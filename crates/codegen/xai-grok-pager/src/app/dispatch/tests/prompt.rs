@@ -978,6 +978,47 @@ fn send_prompt_leading_skill_keeps_inject_skill_path() {
 }
 
 #[test]
+fn send_high_prompt_stamps_turn_effort_and_strips_slash_from_wire() {
+    use xai_grok_shell::sampling::types::ReasoningEffort;
+
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    {
+        let agent = app.agents.get_mut(&id).unwrap();
+        let model_id = acp::ModelId::new(std::sync::Arc::from("grok-4.6"));
+        let mut meta = serde_json::Map::new();
+        meta.insert(
+            "supportsReasoningEffort".into(),
+            serde_json::Value::Bool(true),
+        );
+        let info = acp::ModelInfo::new(model_id.clone(), "Grok 4.6".to_string())
+            .meta(serde_json::Value::Object(meta).as_object().cloned());
+        agent.session.models.available.insert(model_id.clone(), info);
+        agent.session.models.current = Some(model_id);
+    }
+
+    let effects = dispatch(Action::SendPrompt("/high find the race".into()), &mut app);
+    match &effects[..] {
+        [Effect::SendPromptBlocks {
+            blocks,
+            reasoning_effort,
+            ..
+        }] => {
+            assert_eq!(*reasoning_effort, Some(ReasoningEffort::High));
+            let acp::ContentBlock::Text(text) = &blocks[0] else {
+                panic!("expected text block");
+            };
+            assert_eq!(text.text, "find the race");
+        }
+        other => panic!("expected SendPromptBlocks with high effort, got {other:?}"),
+    }
+    match &app.agents[&id].scrollback.get(0).unwrap().block {
+        RenderBlock::UserPrompt(b) => assert_eq!(b.text, "/high find the race"),
+        other => panic!("expected UserPrompt, got {other:?}"),
+    }
+}
+
+#[test]
 fn follow_up_chip_preserves_prompt_draft() {
     // A chip click submits the suggestion but must not wipe a typed draft.
     let mut app = test_app_with_agent();

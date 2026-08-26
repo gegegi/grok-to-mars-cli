@@ -94,6 +94,7 @@ pub(crate) struct TurnInputRequest {
     pub(crate) json_schema: Option<serde_json::Value>,
     pub(crate) persist_ack: Option<oneshot::Sender<()>>,
     pub(crate) parsed_prompt_tx: Option<oneshot::Sender<ParsedPromptInfo>>,
+    pub(crate) reasoning_effort: Option<xai_grok_sampling_types::ReasoningEffort>,
 }
 
 pub(crate) struct AgentTask {
