@@ -3,7 +3,7 @@
 use super::common::*;
 
 const FEEDBACK_PLACEHOLDER_SENTINEL: &str = "Please provide as much detail as possible.";
-const FEEDBACK_LABEL_SENTINEL: &str = "How can we improve Grok Build?";
+const FEEDBACK_LABEL_SENTINEL: &str = "How can we improve Grok To Mars?";
 // Fragment of `FEEDBACK_TRACE_QUESTION_LABEL` short enough to survive
 // terminal wrapping at any tested width.
 const TRACE_QUESTION_SENTINEL: &str = "Opt-in to provide your trace";

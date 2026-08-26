@@ -313,7 +313,10 @@ pub(super) fn render_auth(buf: &mut Buffer, area: Rect, theme: &Theme, hint: &Mi
                 y,
                 bottom,
                 Line::from(Span::styled(
-                    "Grok To Mars may run or modify contents in this directory,",
+                    format!(
+                        "{} may run or modify contents in this directory,",
+                        xai_grok_version::DISPLAY_NAME
+                    ),
                     gray,
                 )),
             );

@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use crate::common::*;
 
-const FEEDBACK_LABEL_SENTINEL: &str = "How can we improve Grok Build?";
+const FEEDBACK_LABEL_SENTINEL: &str = "How can we improve Grok To Mars?";
 const FEEDBACK_PLACEHOLDER_SENTINEL: &str = "Please provide as much detail as possible.";
 const SESSION_GATE_SENTINEL: &str = "No active session";
 const THANKS_SENTINEL: &str = "Thanks for the feedback";

@@ -60,7 +60,8 @@ Relative to upstream Grok Build, this tree currently adds:
 - Turn-scoped reasoning-effort commands: `/low`, `/medium`, `/high`, `/xhigh`
   (one prompt on the current model; session `/effort` is unchanged)
 - A second cargo binary named `gtm`, installed beside official `grok`
-- A few user-facing labels that say **Grok To Mars** instead of Grok Build
+- User-facing TUI chrome labeled **Grok To Mars** instead of Grok Build
+  (welcome title, help, tutorial, feedback)
 
 Everything else is Grok Build, merged from upstream. The root `SOURCE_REV`
 file records the monorepo commit SHA of the last official sync.

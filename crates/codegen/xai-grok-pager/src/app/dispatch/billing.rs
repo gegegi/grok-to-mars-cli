@@ -120,7 +120,7 @@ pub(super) fn open_credit_limit_upsell(
             "You hit your weekly limit.",
             "Upgrade to a higher tier for more usage",
             "Buy more credits",
-            "Purchase credits to keep using Grok Build",
+            "Purchase credits to keep using Grok To Mars",
             CreditLimitCardAction::PurchaseCredits,
             xai_grok_telemetry::events::CreditLimitChoice::PurchaseCredits,
             false,
@@ -304,7 +304,7 @@ fn open_supergrok_upsell(
         },
         QuestionOption {
             label: "Upgrade to SuperGrok Heavy".into(),
-            description: "Get the most out of Grok Build. Highest usage limits.".into(),
+            description: "Get the most out of Grok To Mars. Highest usage limits.".into(),
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
         },

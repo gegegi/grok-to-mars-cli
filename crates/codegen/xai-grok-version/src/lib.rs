@@ -6,6 +6,10 @@ use semver::Version;
 
 pub const TEST_VERSION_ENV: &str = "GROK_TEST_VERSION";
 
+/// User-facing product name for this fork's TUI and CLI help.
+/// Not a model name, wire identifier, config path, or telemetry field.
+pub const DISPLAY_NAME: &str = "Grok To Mars";
+
 pub const VERSION: &str = match option_env!("GROK_VERSION") {
     Some(v) => v,
     None => env!("CARGO_PKG_VERSION"),

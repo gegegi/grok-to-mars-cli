@@ -247,7 +247,7 @@ pub(crate) fn commit_feedback(
         if displaced {
             "Another question interrupted /feedback. Your report was sent without a trace."
         } else {
-            "Thanks for the feedback! The Grok Build team is on it."
+            "Thanks for the feedback! The Grok To Mars team is on it."
         }
         .to_string(),
     ));
