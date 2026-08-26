@@ -11,8 +11,15 @@ default-run = "xai-grok-pager"
 # library and the optional `xai-grok-pager-minimal` render mode: `minimal`
 # depends on `xai-grok-pager`, so the pager library cannot depend back on it
 # (cargo cycle). The binary installs the minimal-mode IoC hooks at startup.
+#
+# `gtm` is the Grok-to-Mars install name (`scripts/install-gtm.sh`). Official
+# `grok` stays in `~/.grok/bin`; this binary must not replace it.
 [[bin]]
 name = "xai-grok-pager"
+path = "src/main.rs"
+
+[[bin]]
+name = "gtm"
 path = "src/main.rs"
 
 [dependencies]

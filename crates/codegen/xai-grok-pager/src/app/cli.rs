@@ -835,6 +835,16 @@ fn strip_cur_dir(path: PathBuf) -> PathBuf {
         .filter(|component| !matches!(component, std::path::Component::CurDir))
         .collect()
 }
+/// argv0 basename used for clap's command name. `gtm` is the Grok-to-Mars
+/// install; unknown names (cargo test binaries) stay `grok`.
+fn clap_bin_name(argv0_file_name: Option<&str>) -> &str {
+    match argv0_file_name {
+        Some("gtm" | "gtm.exe") => "gtm",
+        Some("agent" | "agent.exe") => "agent",
+        Some("grok" | "grok.exe") => "grok",
+        _ => "grok",
+    }
+}
 impl PagerArgs {
     pub(crate) fn memory_enabled_override(&self) -> Option<bool> {
         if self.experimental_memory {
@@ -856,15 +866,15 @@ impl PagerArgs {
     }
     /// Parse CLI arguments without applying side effects.
     pub fn parse_cli() -> Self {
-        let bin_name = std::env::args()
-            .next()
-            .as_deref()
-            .map(std::path::Path::new)
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-            .filter(|n| *n == "grok" || *n == "agent")
-            .unwrap_or("grok")
-            .to_owned();
+        let bin_name = clap_bin_name(
+            std::env::args()
+                .next()
+                .as_deref()
+                .map(std::path::Path::new)
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str()),
+        )
+        .to_owned();
         Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)))
     }
     /// Apply launch-directory path anchoring and `--cwd` after early commands
@@ -1471,6 +1481,14 @@ mod tests {
         let alias =
             PagerArgs::try_parse_from(["grok", "--trust-folder"]).expect("--trust-folder parses");
         assert!(alias.trust);
+    }
+    #[test]
+    fn clap_bin_name_keeps_gtm_separate_from_grok() {
+        assert_eq!(clap_bin_name(Some("gtm")), "gtm");
+        assert_eq!(clap_bin_name(Some("gtm.exe")), "gtm");
+        assert_eq!(clap_bin_name(Some("grok")), "grok");
+        assert_eq!(clap_bin_name(Some("xai-grok-pager")), "grok");
+        assert_eq!(clap_bin_name(None), "grok");
     }
     #[test]
     fn reasoning_effort_and_effort_alias_parse_same_field() {

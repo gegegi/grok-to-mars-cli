@@ -76,10 +76,21 @@ Requirements:
 cargo run -p xai-grok-pager-bin              # build + launch the TUI
 cargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager
 cargo check -p xai-grok-pager-bin            # fast validation
+scripts/install-gtm.sh                       # install this fork as `gtm` (does not replace `grok`)
 ```
 
-The binary artifact is named `xai-grok-pager`; official installs ship it as
-`grok`. On first launch it opens your browser to authenticate — see the
+The cargo artifact is named `xai-grok-pager`. Official installs ship that
+product as `grok` in `~/.grok/bin`. This fork installs a **separate**
+command, `gtm`, into `~/.local/bin` so the two stay side by side:
+
+| Command | What runs |
+| --- | --- |
+| `grok` | Already-installed Grok Build CLI (`~/.grok/bin/grok`) |
+| `gtm` | This repository's CLI (`scripts/install-gtm.sh`) |
+
+`gtm` does not run `grok update` (that would rewrite the official binary).
+Rebuild with `scripts/install-gtm.sh`. Override the install directory with
+`GTM_BIN_DIR`. On first launch it opens your browser to authenticate — see the
 [authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).
 
 ## Documentation

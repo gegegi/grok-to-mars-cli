@@ -1144,7 +1144,7 @@ async fn run_agent_command(
     let is_leader = matches!(agent_args.mode, Some(AgentCmd::Leader(_)));
     if !is_stdio && !is_leader {
         eprintln!(
-            "Grok Build (pager) - v{}",
+            "Grok To Mars (pager) - v{}",
             xai_grok_version::display_version_with_commit(
                 env!("VERSION_WITH_COMMIT"),
                 xai_grok_update::channel_label(),
@@ -1842,9 +1842,38 @@ fn install_heap_profile_hooks() {
         prof_available: jemalloc_prof_available,
     });
 }
+/// Basename of argv0, mapped to the user-facing CLI name.
+///
+/// `gtm` is the Grok-to-Mars install (`scripts/install-gtm.sh`). Unknown
+/// names (cargo test harnesses, `xai-grok-pager`) keep the upstream `grok`
+/// label so official help/version text stays unchanged.
+fn invoked_cli_name() -> &'static str {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        std::env::args()
+            .next()
+            .as_deref()
+            .map(std::path::Path::new)
+            .and_then(|p| p.file_stem())
+            .and_then(|n| n.to_str())
+            .map(|n| match n {
+                "gtm" => "gtm",
+                "agent" => "agent",
+                "grok" => "grok",
+                _ => "grok",
+            })
+            .unwrap_or("grok")
+            .to_owned()
+    })
+    .as_str()
+}
+fn is_gtm_cli() -> bool {
+    invoked_cli_name() == "gtm"
+}
 fn version_text(channel_label: &str) -> String {
     format!(
-        "grok {}\n",
+        "{} {}\n",
+        invoked_cli_name(),
         xai_grok_version::display_version_with_commit(
             xai_grok_version::full_version(),
             channel_label,
@@ -2170,6 +2199,15 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                 trigger,
                 auto,
             } => {
+                if is_gtm_cli() {
+                    eprintln!(
+                        "gtm is the Grok-to-Mars CLI built from this repo.\n\
+                         It does not run the official updater (that would replace `grok` in ~/.grok/bin).\n\
+                         Rebuild with:  scripts/install-gtm.sh\n\
+                         Official grok stays on:  grok update"
+                    );
+                    return Ok(());
+                }
                 init_tracing_simple("cli");
                 let _otel_guard = xai_grok_telemetry::otel_layer::otel_guard();
                 let channel_switch = get_channel_switch(alpha, stable, enterprise);
@@ -2402,6 +2440,11 @@ fn should_check_for_updates(no_auto_update_flag: bool) -> bool {
         return false;
     }
     if no_auto_update_flag {
+        return false;
+    }
+    // Source-built `gtm` must not run the official updater: it swaps
+    // `~/.grok/bin/grok`, which is the already-installed Grok Build CLI.
+    if is_gtm_cli() {
         return false;
     }
     !std::env::var_os("GROK_DISABLE_AUTOUPDATER")
