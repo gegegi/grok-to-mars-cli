@@ -1871,6 +1871,126 @@ fn invoked_cli_name() -> &'static str {
 fn is_gtm_cli() -> bool {
     invoked_cli_name() == "gtm"
 }
+
+#[cfg(unix)]
+async fn gtm_hub_tui_pump(
+    mut client: gtm_hub::HubClient,
+    inbound: tokio::sync::mpsc::UnboundedSender<xai_grok_pager::app::GtmHubInbound>,
+    mut outbound: tokio::sync::mpsc::UnboundedReceiver<xai_grok_pager::app::GtmHubOutbound>,
+) {
+    use xai_grok_pager::app::{GtmHubInbound, GtmHubOutbound};
+    let mut next_id: i64 = 1000;
+    loop {
+        tokio::select! {
+            msg = client.recv() => {
+                let Ok(msg) = msg else { break };
+                let method = msg.get("method").and_then(|v| v.as_str()).unwrap_or("");
+                if method == "session/prompt" {
+                    let id = msg.get("id").cloned().unwrap_or(serde_json::json!(null));
+                    let params = msg.get("params").cloned().unwrap_or(serde_json::json!({}));
+                    let session_id = params
+                        .get("sessionId")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let text = xai_grok_pager::app::gtm_hub::extract_prompt_text(&params);
+                    if inbound
+                        .send(GtmHubInbound::Prompt {
+                            rpc_id: id,
+                            session_id,
+                            text,
+                        })
+                        .is_err()
+                    {
+                        break;
+                    }
+                } else if method == "session/cancel" {
+                    let params = msg.get("params").cloned().unwrap_or(serde_json::json!({}));
+                    let session_id = params
+                        .get("sessionId")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    if inbound
+                        .send(GtmHubInbound::Cancel { session_id })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+            cmd = outbound.recv() => {
+                let Some(cmd) = cmd else { break };
+                let msg = match cmd {
+                    GtmHubOutbound::Host { session_id, cwd, title } => {
+                        next_id += 1;
+                        serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": next_id,
+                            "method": "gtm/sessions.host",
+                            "params": {
+                                "sessionId": session_id,
+                                "cwd": cwd,
+                                "title": title,
+                            }
+                        })
+                    }
+                    GtmHubOutbound::Unhost { session_id } => {
+                        next_id += 1;
+                        serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": next_id,
+                            "method": "gtm/sessions.unhost",
+                            "params": { "sessionId": session_id }
+                        })
+                    }
+                    GtmHubOutbound::SessionUpdate { session_id, mut params } => {
+                        if params.get("sessionId").is_none() {
+                            if let Some(obj) = params.as_object_mut() {
+                                obj.insert("sessionId".into(), serde_json::json!(session_id));
+                            }
+                        }
+                        serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "method": "session/update",
+                            "params": params
+                        })
+                    }
+                    GtmHubOutbound::PromptResult { rpc_id, result, error } => {
+                        if let Some(message) = error {
+                            serde_json::json!({
+                                "jsonrpc": "2.0",
+                                "id": rpc_id,
+                                "error": { "code": -32012, "message": message }
+                            })
+                        } else {
+                            serde_json::json!({
+                                "jsonrpc": "2.0",
+                                "id": rpc_id,
+                                "result": result
+                            })
+                        }
+                    }
+                };
+                if client.send_raw(msg).await.is_err() {
+                    break;
+                }
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
+                next_id += 1;
+                let ping = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": next_id,
+                    "method": "gtm/ping",
+                    "params": {}
+                });
+                if client.send_raw(ping).await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+}
 fn version_text(channel_label: &str) -> String {
     format!(
         "{} {}\n",
@@ -1915,6 +2035,14 @@ fn main() {
     }
     if let Some(code) = xai_grok_pager::voice::maybe_run_capture_subprocess() {
         std::process::exit(code);
+    }
+    // Fork-owned hub: intercept before upstream clap so grok-pager Command
+    // enum does not grow a Hub variant (easier upstream merges).
+    if matches!(
+        std::env::args().nth(1).as_deref(),
+        Some("hub") | Some("remote")
+    ) {
+        std::process::exit(gtm_hub::main_from_env());
     }
     set_release_channel(ReleaseChannel::from_label(
         xai_grok_update::channel_name().unwrap_or_default(),
@@ -2344,7 +2472,31 @@ async fn async_main(args: PagerArgs) -> Result<()> {
         } else {
             None
         };
-    let result = xai_grok_pager::app::run(args, bg_update_rx).await;
+    #[cfg(unix)]
+    let gtm_hub_bridge = if is_gtm_cli() {
+        match gtm_hub::attach_tui().await {
+            Ok(client) => {
+                let (in_tx, in_rx) = tokio::sync::mpsc::unbounded_channel();
+                let (out_tx, out_rx) = tokio::sync::mpsc::unbounded_channel();
+                tokio::spawn(async move {
+                    gtm_hub_tui_pump(client, in_tx, out_rx).await;
+                });
+                Some(xai_grok_pager::app::GtmHubBridge {
+                    inbound: in_rx,
+                    outbound: out_tx,
+                })
+            }
+            Err(err) => {
+                tracing::debug!("gtm hub TUI attach skipped: {err:#}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    #[cfg(not(unix))]
+    let gtm_hub_bridge = None;
+    let result = xai_grok_pager::app::run(args, bg_update_rx, gtm_hub_bridge).await;
     xai_grok_sandbox::flush();
     match result {
         Ok(true) => {

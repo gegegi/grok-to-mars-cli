@@ -145,6 +145,9 @@ pub enum Action {
     },
     /// Send the current prompt text to the agent.
     SendPrompt(String),
+    /// Phone / hub injects a prompt into the open TUI session without wiping
+    /// the composer (literal text, no slash dispatch).
+    HubInjectPrompt(String),
     /// Submit a clicked follow-up suggestion chip as a LITERAL model prompt.
     /// The suggestion text is server/model-controlled, so it must bypass
     /// slash-command and exit-alias resolution (a `/always-approve` or `/quit`

@@ -21,6 +21,7 @@ This fork installs as **`gtm`**. It is meant to sit **next to** an official
 [Install `gtm`](#install-gtm) ·
 [Official Grok Build](#official-grok-build) ·
 [What this fork changes](#what-this-fork-changes) ·
+[Remote hub](#remote-hub) ·
 [Branches](#branches) ·
 [Building from source](#building-from-source) ·
 [Documentation](#documentation) ·
@@ -62,9 +63,106 @@ Relative to upstream Grok Build, this tree currently adds:
 - A second cargo binary named `gtm`, installed beside official `grok`
 - User-facing TUI chrome labeled **Grok To Mars** instead of Grok Build
   (welcome title, help, tutorial, feedback)
+- A local **session hub** (`gtm hub` / `gtm remote`) so a `gtm` TUI and a
+  remote client (macOS/iOS app) can attach to the **same** live session.
+  Official `grok` sessions are **not** shared this way — see [Remote hub](#remote-hub).
 
 Everything else is Grok Build, merged from upstream. The root `SOURCE_REV`
 file records the monorepo commit SHA of the last official sync.
+
+## Remote hub
+
+`gtm` can run a machine-local hub (`~/.gtm/hub.sock`). The interactive
+`gtm` TUI connect-or-spawns it. Phone/tablet clients join over LAN TLS
+(mTLS, enroll file), not the Unix socket.
+
+```sh
+gtm hub status                 # pid, socket, which sessions are live
+gtm remote --lan               # bind TLS 1.3 mTLS on :27420 (ALPN gtm-hub)
+gtm remote enroll [--ttl 30d]  # write ~/Desktop/gtm-hub.enroll
+gtm remote list | revoke <id> | off | status
+```
+
+Disk transcripts still live under `~/.grok/sessions/…` (same layout as
+official Grok Build). The hub does **not** create a second session
+database. What it *does* decide is **which process owns the live turn**.
+
+### `gtm` session vs official `grok` session
+
+Both binaries can open the same session **id** on disk. That does not mean
+they share the live agent.
+
+| | Official `grok` TUI | `gtm` TUI |
+| --- | --- | --- |
+| Command | `grok` / `grok --resume <id>` | `gtm` / `gtm --resume <id>` |
+| Live agent | In-process (or grok leader) | In-process, and **hosts** that session on the hub |
+| Remote app | Hub cannot attach to this actor | Hub forwards prompts into this TUI and clones `session/update` back |
+| `gtm hub status` | Session does not show as `[TUI host]` | Session shows `[TUI host]` when the TUI has it open |
+
+The remote app always talks to **gtm hub**, never to `~/.grok/leader.sock`
+and never to a running `grok` process.
+
+If you resume an official **grok CLI session** from the app while a `grok`
+TUI already has it open:
+
+- The hub starts a **private** actor (`gtm agent --no-leader stdio`).
+- That actor is a **second** runtime on the same session files.
+- TUI input/output and app input/output are **not** cloned. Each side only
+  sees what its own actor streams. Reloading history from disk may show
+  past turns; the in-flight turn is not mirrored.
+
+The same split happens if the app attaches while **no** `gtm` TUI is
+hosting: `gtm hub status` lists the session as `[hub actor]`. That is a
+phone-only (or app-only) agent, not a clone of a `grok` window.
+
+### What *is* shared (and what is not)
+
+**Shared**
+
+- Session files on disk (`summary.json`, `chat_history.jsonl`, …) — any
+  client can list and load history for a session id.
+- Live input **and** output between a **`gtm` TUI host** and a remote app
+  attached to that same id (`[TUI host]`). App prompt → hub → TUI;
+  TUI stream → hub → app.
+
+**Not shared**
+
+- A live `grok` TUI and the remote app (separate actors, even on the same
+  session id).
+- Two `gtm` TUI windows on the same session (last TUI to host wins; it
+  does not merge two in-process agents).
+- Permissions for dangerous tools from a LAN client — those still need a
+  local Mac/`gtm` confirmation.
+- Official grok leader, MCP hosts, or `grok agent serve` as the remote
+  transport.
+
+### How to share a session with the app
+
+1. Quit any official `grok` TUI that has the session open (optional but
+   avoids two writers on the same files).
+2. Open it with **this** binary, not `grok`:
+
+   ```sh
+   gtm --resume <session-id>
+   ```
+
+3. In another terminal:
+
+   ```sh
+   gtm hub status
+   ```
+
+   You want `[TUI host]` on that id, not `[hub actor]` and not
+   `live sessions: none`.
+4. Connect the app with a `gtm-hub.enroll` file and **select that same
+   session**.
+
+`gtm hub status` is only a probe; it does not host a session. Hosting
+starts when the interactive `gtm` TUI has the session open.
+
+After `scripts/install-gtm.sh`, already-running `gtm` processes keep the
+old binary in memory. Restart the TUI (and the hub if you were asked to)
+so the installed file is what is actually executing.
 
 ## Install `gtm`
 
@@ -140,10 +238,14 @@ matches official Grok Build. Use the upstream docs, substituting `gtm` for
 Turn-scoped effort commands are documented in
 [`04-slash-commands.md`](crates/codegen/xai-grok-pager/docs/user-guide/04-slash-commands.md).
 
+Hub crate notes: [`crates/codegen/gtm-hub/README.md`](crates/codegen/gtm-hub/README.md).
+The protocol sketch in the umbrella repo is `docs/hub.md`.
+
 ## Repository layout
 
 | Path | Contents |
 |------|----------|
+| `crates/codegen/gtm-hub` | Local session hub (`gtm hub` / `gtm remote`); not in upstream pager |
 | `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds `xai-grok-pager` and `gtm` |
 | `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |
 | `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |

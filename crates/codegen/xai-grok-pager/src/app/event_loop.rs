@@ -1057,6 +1057,7 @@ pub(crate) async fn run(
         tokio::sync::oneshot::Receiver<Option<xai_grok_update::auto_update::UpdateAvailable>>,
     >,
     mut writer_event_rx: tokio::sync::mpsc::UnboundedReceiver<crate::render::draw::WriterEvent>,
+    mut gtm_hub: Option<crate::app::GtmHubBridge>,
 ) -> anyhow::Result<RunResult> {
     // Initialize tracing capture. The channel `rx` will be wired to a
     // TracingModel (and ultimately a tracing pane) once integrated.
@@ -1915,6 +1916,11 @@ pub(crate) async fn run(
         }
     });
     let mut acp_rx = connection.rx;
+    let mut gtm_remote_prompts: std::collections::HashMap<String, serde_json::Value> =
+        std::collections::HashMap::new();
+    let mut gtm_pending_inject: std::collections::VecDeque<serde_json::Value> =
+        std::collections::VecDeque::new();
+    let mut gtm_hosted: Option<String> = None;
     let connection_cancel = connection.cancel;
     let mut leader_status_rx = connection.leader_status_rx;
     let mut tasks: JoinSet<TaskResult> = JoinSet::new();
@@ -2612,6 +2618,9 @@ pub(crate) async fn run(
                 }
             }, if input_rx.is_empty() => {
                 let Some(msg) = msg else { break };
+                if let Some(bridge) = gtm_hub.as_ref() {
+                    tee_gtm_hub_update(&msg, &bridge.outbound);
+                }
                 let mut state_changed = acp_handler::handle(msg, &mut app);
                 if !app.pending_effects.is_empty() {
                     let effs = std::mem::take(&mut app.pending_effects);
@@ -2630,6 +2639,9 @@ pub(crate) async fn run(
                 while drained < ACP_DRAIN_BATCH_MAX && input_rx.is_empty() {
                     let Ok(msg) = acp_rx.try_recv() else { break };
                     drained += 1;
+                    if let Some(bridge) = gtm_hub.as_ref() {
+                        tee_gtm_hub_update(&msg, &bridge.outbound);
+                    }
                     state_changed |= acp_handler::handle(msg, &mut app);
                     if !app.pending_effects.is_empty() {
                         let effs = std::mem::take(&mut app.pending_effects);
@@ -2681,7 +2693,11 @@ pub(crate) async fn run(
                         ) else {
                             continue;
                         };
+                        if let Some(bridge) = gtm_hub.as_ref() {
+                            complete_gtm_hub_prompt(&result, &mut gtm_remote_prompts, &bridge.outbound);
+                        }
                         let effs = dispatch::dispatch(Action::TaskComplete(result), &mut app);
+                        bind_gtm_inject_effects(&effs, &mut gtm_pending_inject, &mut gtm_remote_prompts);
                         if process_effects(effs, &mut tasks, &mut app, &progress_tx) {
                             break;
                         }
@@ -2705,6 +2721,27 @@ pub(crate) async fn run(
                             tracing::error!("Spawned task panicked: {join_err}");
                         }
                     }
+                }
+            }
+
+            hub_in = async {
+                match gtm_hub.as_mut() {
+                    Some(bridge) => bridge.inbound.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                if let Some(msg) = hub_in {
+                    let outbound = gtm_hub.as_ref().map(|b| b.outbound.clone());
+                    handle_gtm_hub_inbound(
+                        msg,
+                        &mut app,
+                        &mut tasks,
+                        &progress_tx,
+                        &mut gtm_remote_prompts,
+                        &mut gtm_pending_inject,
+                        outbound.as_ref(),
+                    );
+                    presenter.request(false);
                 }
             }
 
@@ -3393,9 +3430,14 @@ pub(crate) async fn run(
         // still drain inline when it needs the effects applied sooner.
         if !app.pending_effects.is_empty() {
             let effs = std::mem::take(&mut app.pending_effects);
+            bind_gtm_inject_effects(&effs, &mut gtm_pending_inject, &mut gtm_remote_prompts);
             if process_effects(effs, &mut tasks, &mut app, &progress_tx) {
                 break;
             }
+        }
+
+        if let Some(bridge) = gtm_hub.as_ref() {
+            sync_gtm_hub_host(&app, &mut gtm_hosted, &bridge.outbound);
         }
 
         presenter.present_if_dirty(&mut app, terminal);
@@ -4503,6 +4545,227 @@ fn dispatch_then_forward(
         effects.extend(dispatch::dispatch(follow_up, app));
     }
     effects
+}
+
+fn tee_gtm_hub_update(
+    msg: &AcpClientMessage,
+    outbound: &tokio::sync::mpsc::UnboundedSender<crate::app::GtmHubOutbound>,
+) {
+    use crate::app::GtmHubOutbound;
+    match msg {
+        AcpClientMessage::SessionNotification(notif) => {
+            let session_id = notif.request.session_id.0.to_string();
+            let params = serde_json::json!({
+                "sessionId": session_id,
+                "update": acp_update_wire(&notif.request.update),
+            });
+            let _ = outbound.send(GtmHubOutbound::SessionUpdate { session_id, params });
+        }
+        AcpClientMessage::ExtNotification(notif) => {
+            let method = notif.request.method.as_ref();
+            if method != "x.ai/session/update" && method != "x.ai/session_notification" {
+                return;
+            }
+            // params is `RawValue`; parse the JSON text, don't `to_value` it
+            // (that can yield a JSON string and drop sessionId).
+            let Ok(mut params) = serde_json::from_str::<serde_json::Value>(notif.request.params.get())
+            else {
+                return;
+            };
+            let session_id = params
+                .get("sessionId")
+                .or_else(|| params.get("session_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if session_id.is_empty() {
+                return;
+            }
+            if params.get("sessionId").is_none() {
+                if let Some(obj) = params.as_object_mut() {
+                    obj.insert("sessionId".into(), serde_json::json!(session_id.clone()));
+                }
+            }
+            let _ = outbound.send(GtmHubOutbound::SessionUpdate { session_id, params });
+        }
+        _ => {}
+    }
+}
+
+fn acp_update_wire(update: &acp::SessionUpdate) -> serde_json::Value {
+    match update {
+        acp::SessionUpdate::AgentMessageChunk(chunk) => serde_json::json!({
+            "sessionUpdate": "agent_message_chunk",
+            "content": acp_content_wire(&chunk.content),
+            "text": acp_content_text(&chunk.content),
+        }),
+        acp::SessionUpdate::UserMessageChunk(chunk) => serde_json::json!({
+            "sessionUpdate": "user_message_chunk",
+            "content": acp_content_wire(&chunk.content),
+            "text": acp_content_text(&chunk.content),
+        }),
+        acp::SessionUpdate::AgentThoughtChunk(chunk) => serde_json::json!({
+            "sessionUpdate": "agent_thought_chunk",
+            "content": acp_content_wire(&chunk.content),
+            "text": acp_content_text(&chunk.content),
+        }),
+        other => serde_json::to_value(other).unwrap_or(serde_json::json!({})),
+    }
+}
+
+fn acp_content_text(block: &acp::ContentBlock) -> String {
+    match block {
+        acp::ContentBlock::Text(t) => t.text.clone(),
+        _ => String::new(),
+    }
+}
+
+fn acp_content_wire(block: &acp::ContentBlock) -> serde_json::Value {
+    match block {
+        acp::ContentBlock::Text(t) => serde_json::json!({ "type": "text", "text": t.text }),
+        other => serde_json::to_value(other).unwrap_or(serde_json::json!({})),
+    }
+}
+
+fn complete_gtm_hub_prompt(
+    result: &TaskResult,
+    remote: &mut std::collections::HashMap<String, serde_json::Value>,
+    outbound: &tokio::sync::mpsc::UnboundedSender<crate::app::GtmHubOutbound>,
+) {
+    let TaskResult::PromptResponse {
+        prompt_id,
+        result: prompt_result,
+        ..
+    } = result
+    else {
+        return;
+    };
+    let Some(pid) = prompt_id.as_ref() else {
+        return;
+    };
+    let Some(rpc_id) = remote.remove(pid) else {
+        return;
+    };
+    match prompt_result {
+        Ok(_) => {
+            let _ = outbound.send(crate::app::GtmHubOutbound::PromptResult {
+                rpc_id,
+                result: serde_json::json!({ "stopReason": "end_turn" }),
+                error: None,
+            });
+        }
+        Err(err) => {
+            let _ = outbound.send(crate::app::GtmHubOutbound::PromptResult {
+                rpc_id,
+                result: serde_json::json!({}),
+                error: Some(err.clone()),
+            });
+        }
+    }
+}
+
+fn bind_gtm_inject_effects(
+    effs: &[Effect],
+    pending: &mut std::collections::VecDeque<serde_json::Value>,
+    remote: &mut std::collections::HashMap<String, serde_json::Value>,
+) {
+    for e in effs {
+        if let Effect::SendPrompt { prompt_id, .. } = e {
+            if let Some(rpc_id) = pending.pop_front() {
+                remote.insert(prompt_id.clone(), rpc_id);
+            }
+        }
+    }
+}
+
+fn handle_gtm_hub_inbound(
+    msg: crate::app::GtmHubInbound,
+    app: &mut AppView,
+    tasks: &mut JoinSet<TaskResult>,
+    progress_tx: &tokio::sync::mpsc::UnboundedSender<effects::RestoreProgressMsg>,
+    remote: &mut std::collections::HashMap<String, serde_json::Value>,
+    pending: &mut std::collections::VecDeque<serde_json::Value>,
+    outbound: Option<&tokio::sync::mpsc::UnboundedSender<crate::app::GtmHubOutbound>>,
+) {
+    use crate::app::GtmHubInbound;
+    match msg {
+        GtmHubInbound::Prompt {
+            rpc_id,
+            session_id,
+            text,
+        } => {
+            if app.active_session_id() != Some(session_id.as_str()) {
+                if let Some(tx) = outbound {
+                    let _ = tx.send(crate::app::GtmHubOutbound::PromptResult {
+                        rpc_id,
+                        result: serde_json::json!({}),
+                        error: Some(format!("TUI is not viewing session {session_id}")),
+                    });
+                }
+                return;
+            }
+            if text.trim().is_empty() {
+                if let Some(tx) = outbound {
+                    let _ = tx.send(crate::app::GtmHubOutbound::PromptResult {
+                        rpc_id,
+                        result: serde_json::json!({}),
+                        error: Some("empty prompt".into()),
+                    });
+                }
+                return;
+            }
+            pending.push_back(rpc_id);
+            let effs = dispatch::dispatch(Action::HubInjectPrompt(text), app);
+            bind_gtm_inject_effects(&effs, pending, remote);
+            let _ = process_effects(effs, tasks, app, progress_tx);
+        }
+        GtmHubInbound::Cancel { session_id } => {
+            if app.active_session_id() == Some(session_id.as_str()) {
+                let effs = dispatch::dispatch(Action::CancelTurn, app);
+                let _ = process_effects(effs, tasks, app, progress_tx);
+            }
+        }
+    }
+}
+
+fn sync_gtm_hub_host(
+    app: &AppView,
+    hosted: &mut Option<String>,
+    outbound: &tokio::sync::mpsc::UnboundedSender<crate::app::GtmHubOutbound>,
+) {
+    let active = app.active_session_id().map(str::to_owned);
+    let any_session = app.agents.values().find_map(|a| {
+        a.session
+            .session_id
+            .as_ref()
+            .map(|s| s.0.to_string())
+    });
+    let sid = active.or(any_session);
+    let Some(session_id) = sid else {
+        // Keep the previous host during /resume load flicker (session_id is
+        // briefly None). Only drop when no agent has a session at all.
+        if app.agents.is_empty() {
+            if let Some(old) = hosted.take() {
+                let _ = outbound.send(crate::app::GtmHubOutbound::Unhost { session_id: old });
+            }
+        }
+        return;
+    };
+    if hosted.as_deref() == Some(session_id.as_str()) {
+        return;
+    }
+    if let Some(old) = hosted.take() {
+        if old != session_id {
+            let _ = outbound.send(crate::app::GtmHubOutbound::Unhost { session_id: old });
+        }
+    }
+    let cwd = app.cwd.to_string_lossy().into_owned();
+    let _ = outbound.send(crate::app::GtmHubOutbound::Host {
+        session_id: session_id.clone(),
+        cwd,
+        title: String::new(),
+    });
+    *hosted = Some(session_id);
 }
 
 /// Spawn effects into the task set. Returns `true` if the app should quit.

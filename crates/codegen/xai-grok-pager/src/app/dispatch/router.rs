@@ -391,6 +391,9 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
             vec![]
         }
         Action::SendPrompt(text) => dispatch_send_prompt(app, text),
+        Action::HubInjectPrompt(text) => {
+            dispatch_send_prompt_inner(app, text, false, true, false)
+        }
         Action::SubmitFollowUp(text) => dispatch_send_prompt_inner(app, text, false, true, true),
         Action::SendSlashCommandPreservingDraft(text) => {
             dispatch_send_prompt_inner(app, text, false, false, false)

@@ -10,6 +10,7 @@
 //! - [`acp_handler`] — ACP notification routing
 //! - [`event_loop`] — biased tokio::select! loop
 pub mod actions;
+pub mod gtm_hub;
 pub mod agent;
 pub mod agent_view;
 pub mod app_view;
@@ -65,6 +66,7 @@ pub use cli::{
     LeaderTargetArgs, OutputFormat, PagerArgs, ServeArgs, WrapArgs,
 };
 pub use cli::{WorkspaceMgmtArgs, WorkspaceMgmtCommand, WorkspaceStartArgs};
+pub use gtm_hub::{GtmHubBridge, GtmHubInbound, GtmHubOutbound};
 use crossterm::cursor::{self, SetCursorStyle};
 use crossterm::event;
 use crossterm::execute;
@@ -653,6 +655,7 @@ pub async fn run(
     bg_update_rx: Option<
         tokio::sync::oneshot::Receiver<Option<xai_grok_update::auto_update::UpdateAvailable>>,
     >,
+    gtm_hub: Option<GtmHubBridge>,
 ) -> anyhow::Result<bool> {
     xai_tty_utils::redirect_native_stderr();
     let screen_mode_override = screen_mode_relaunch::take_screen_mode_env_override();
@@ -1071,6 +1074,7 @@ pub async fn run(
         materialized,
         bg_update_rx,
         writer_event_rx,
+        gtm_hub,
     )
     .await;
     signal_handler::clear_quit_notify();
