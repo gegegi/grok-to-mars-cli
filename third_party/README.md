@@ -21,6 +21,7 @@ those as the source of truth when re-vendoring.
 | [`graphlib_rust`](./graphlib_rust/) | 0.0.2 | Apache-2.0 | [r3alst/graphlib-rust](https://github.com/r3alst/graphlib-rust) | [`LICENCE`](./graphlib_rust/LICENCE) |
 | [`ordered_hashmap`](./ordered_hashmap/) | 0.0.3 | Apache-2.0 | [r3alst/ordered-hashmap](https://github.com/r3alst/ordered-hashmap) | [`LICENCE`](./ordered_hashmap/LICENCE) |
 | [`nfsserve`](./nfsserve/) | 0.11.0 | BSD-3-Clause | [huggingface/nfsserve](https://github.com/huggingface/nfsserve) | [`LICENSE`](./nfsserve/LICENSE) |
+| [`lru`](./lru/) | 0.12.5 | MIT | [jeromefroe/lru-rs](https://github.com/jeromefroe/lru-rs) (crates.io 0.12.5 + GHSA-rhfx-m35p-ff5j IterMut backport) | [`LICENSE`](./lru/LICENSE) |
 
 Dependency shape:
 

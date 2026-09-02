@@ -1,0 +1,4 @@
+# lru 0.12.5 stays in the lock because aws-sdk-s3 1.112 and ratatui 0.29
+# require ^0.12; crates.io only fixed this in 0.16.3. The IterMut soundness
+# issue is backported in third_party/lru (patched via [patch.crates-io]).
+GHSA-rhfx-m35p-ff5j

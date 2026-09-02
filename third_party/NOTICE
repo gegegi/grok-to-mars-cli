@@ -58,6 +58,16 @@ Upstream:   https://github.com/huggingface/nfsserve (v0.11.0)
 Copyright:  Copyright (c) 2023, XetData; Copyright (c) 2025, Hugging Face
 
 --------------------------------------------------------------------------------
+lru
+--------------------------------------------------------------------------------
+Path:       third_party/lru/
+License:    MIT
+License file: third_party/lru/LICENSE
+Upstream:   https://github.com/jeromefroe/lru-rs (crates.io 0.12.5)
+Copyright:  Copyright (c) 2016 Jerome Froelich
+Local patch: GHSA-rhfx-m35p-ff5j IterMut `&K` instead of `&mut K` (from 0.16.3)
+
+--------------------------------------------------------------------------------
 End of notices for vendored third_party/ crates.
 
 Full product notices (all crates.io / git dependencies shipped with the Grok

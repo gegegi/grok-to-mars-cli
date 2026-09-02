@@ -1,0 +1,30 @@
+# Vendored lru 0.12.5 with GHSA-rhfx-m35p-ff5j / RUSTSEC-2026-0002 backported.
+#
+# aws-sdk-s3 1.112 and ratatui 0.29 require `lru ^0.12`. The crates.io fix is
+# 0.16.3, which those crates will not unify to. IterMut::next / next_back used
+# `&mut K` when yielding `(&K, &mut V)`, invalidating the HashMap's shared
+# key pointer (Stacked Borrows). The 0.16.3 change is applied in src/lib.rs:
+# take `&K` via MaybeUninit::as_ptr instead of as_mut_ptr.
+#
+# Keep package.version at 0.12.5 so [patch.crates-io] satisfies ^0.12.
+# Re-vendor from crates.io lru 0.12.5, then re-apply the two IterMut sites.
+
+[package]
+name = "lru"
+version = "0.12.5"
+authors = ["Jerome Froelich <jeromefroelic@hotmail.com>"]
+categories = ["caching", "no-std"]
+description = "A LRU cache implementation"
+homepage = "https://github.com/jeromefroe/lru-rs"
+repository = "https://github.com/jeromefroe/lru-rs.git"
+documentation = "https://docs.rs/lru/"
+readme = "README.md"
+license = "MIT"
+keywords = ["LRU", "cache"]
+
+[features]
+default = ["hashbrown"]
+nightly = ["hashbrown", "hashbrown/nightly"]
+
+[dependencies]
+hashbrown = { version = "0.15", optional = true }
