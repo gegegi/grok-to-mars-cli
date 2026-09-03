@@ -140,3 +140,51 @@ async fn matching_fail_boot_resets_slot() {
     let _ = fail_boot(&slot, 3).await;
     assert!(matches!(*slot.lock().await, AgentSlot::Down));
 }
+
+// GTM overlay: serve-auth
+#[test]
+fn bearer_auth_accepts_matching_secret() {
+    use super::validate_auth;
+    use axum::http::HeaderMap;
+    let mut headers = HeaderMap::new();
+    headers.insert("authorization", "Bearer correct-token".parse().unwrap());
+    assert!(validate_auth(&headers, "correct-token"));
+}
+
+#[test]
+fn bearer_auth_rejects_wrong_secret() {
+    use super::validate_auth;
+    use axum::http::HeaderMap;
+    let mut headers = HeaderMap::new();
+    headers.insert("authorization", "Bearer wrong-token".parse().unwrap());
+    assert!(!validate_auth(&headers, "correct-token"));
+}
+
+#[test]
+fn bearer_auth_rejects_missing_header() {
+    use super::validate_auth;
+    use axum::http::HeaderMap;
+    assert!(!validate_auth(&HeaderMap::new(), "correct-token"));
+}
+
+#[test]
+fn query_server_key_is_not_auth() {
+    use super::validate_auth;
+    use axum::http::HeaderMap;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-unused",
+        "ws://127.0.0.1/ws?server-key=correct-token"
+            .parse()
+            .unwrap(),
+    );
+    assert!(!validate_auth(&headers, "correct-token"));
+}
+
+#[test]
+fn secrets_equal_matches_and_differs() {
+    use super::secrets_equal;
+    assert!(secrets_equal("same", "same"));
+    assert!(!secrets_equal("same", "other"));
+    assert!(!secrets_equal("short", "longer-secret"));
+}

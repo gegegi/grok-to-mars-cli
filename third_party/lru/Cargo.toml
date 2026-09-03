@@ -1,3 +1,4 @@
+# GTM overlay: lru-iter-mut
 # Vendored lru 0.12.5 with GHSA-rhfx-m35p-ff5j / RUSTSEC-2026-0002 backported.
 #
 # aws-sdk-s3 1.112 and ratatui 0.29 require `lru ^0.12`. The crates.io fix is

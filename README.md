@@ -70,6 +70,10 @@ Relative to upstream Grok Build, this tree currently adds:
 Everything else is Grok Build, merged from upstream. The root `SOURCE_REV`
 file records the monorepo commit SHA of the last official sync.
 
+Edits that sit **inside upstream files** (pager, shell, workspace `Cargo.toml`, …)
+are catalogued in [`UPSTREAM_OVERLAY.md`](UPSTREAM_OVERLAY.md) so a
+`git merge upstream/main` can re-apply them. Search token: `GTM overlay:`.
+
 ## Remote hub
 
 `gtm` can run a machine-local hub (`~/.gtm/hub.sock`). The interactive
@@ -79,7 +83,7 @@ file records the monorepo commit SHA of the last official sync.
 ```sh
 gtm hub status                 # pid, socket, which sessions are live
 gtm remote --lan               # bind TLS 1.3 mTLS on :27420 (ALPN gtm-hub)
-gtm remote enroll [--ttl 30d]  # write ~/Desktop/gtm-hub.enroll
+gtm remote enroll [--ttl 30d]  # write ~/.gtm/gtm-hub.enroll (0600)
 gtm remote list | revoke <id> | off | status
 ```
 
@@ -240,6 +244,8 @@ Turn-scoped effort commands are documented in
 
 Hub crate notes: [`crates/codegen/gtm-hub/README.md`](crates/codegen/gtm-hub/README.md).
 The protocol sketch in the umbrella repo is `docs/hub.md`.
+After merging official `grok-build`, re-apply overlays from
+[`UPSTREAM_OVERLAY.md`](UPSTREAM_OVERLAY.md).
 
 ## Repository layout
 
@@ -255,6 +261,7 @@ The protocol sketch in the umbrella repo is `docs/hub.md`.
 | `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |
 | `third_party/` | Vendored upstream source (Mermaid diagram stack) |
 | `scripts/install-gtm.sh` | Install this fork as `gtm` without touching official `grok` |
+| `UPSTREAM_OVERLAY.md` | Fork edits inside files that also exist in `xai-org/grok-build` |
 
 > [!IMPORTANT]
 > The root `Cargo.toml` (workspace members, dependency versions, lints,

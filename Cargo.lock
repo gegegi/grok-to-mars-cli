@@ -14346,6 +14346,7 @@ dependencies = [
  "sha2 0.10.9",
  "siphasher",
  "strum 0.27.2",
+ "subtle",
  "tar",
  "tdigests",
  "tempfile",

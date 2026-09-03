@@ -10,7 +10,7 @@ LAN (opt-in, for a separate mobile client):
 
 ```
 gtm remote --lan              # TLS 1.3 mTLS on :27420
-gtm remote enroll [--ttl 30d] # ~/Desktop/gtm-hub.enroll
+gtm remote enroll [--ttl 30d] # ~/.gtm/gtm-hub.enroll (0600)
 gtm remote list | revoke <id> | off | status
 ```
 

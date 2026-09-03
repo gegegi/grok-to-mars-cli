@@ -1,5 +1,7 @@
 //! `/low`, `/medium`, `/high`, `/xhigh` — send this prompt at a turn-scoped
 //! reasoning effort without changing the session `/effort`.
+//!
+//! GTM overlay: turn-effort — fork-only slash commands; keep when merging upstream.
 
 use agent_client_protocol as acp;
 use xai_grok_shell::sampling::types::ReasoningEffort;

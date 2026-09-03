@@ -16,10 +16,10 @@ use std::thread;
 use axum::{
     Router,
     extract::{
-        ConnectInfo, Query, State,
+        ConnectInfo, State,
         ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade, close_code},
     },
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, header::AUTHORIZATION},
     response::{IntoResponse, Response},
     routing::get,
 };
@@ -94,27 +94,25 @@ struct NewConnectionChannels {
     to_ws_tx: mpsc::UnboundedSender<String>,
 }
 
-#[derive(Debug, serde::Deserialize, Default)]
-pub(crate) struct WsQueryParams {
-    #[serde(rename = "server-key")]
-    pub server_key: Option<String>,
+/// GTM overlay: serve-auth — SHA-256 then `subtle::ConstantTimeEq` (not `==`).
+pub(crate) fn secrets_equal(provided: &str, expected: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    use subtle::ConstantTimeEq;
+    let a = Sha256::digest(provided.as_bytes());
+    let b = Sha256::digest(expected.as_bytes());
+    bool::from(a.ct_eq(&b))
 }
 
-/// Validate the bearer token from request headers or query parameters.
-fn validate_auth(headers: &HeaderMap, query: &WsQueryParams, expected_secret: &str) -> bool {
-    if let Some(token) = headers
-        .get("authorization")
+/// GTM overlay: serve-auth — Bearer header only; query `server-key` is not accepted.
+pub(crate) fn validate_auth(headers: &HeaderMap, expected_secret: &str) -> bool {
+    let Some(token) = headers
+        .get(AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-    {
-        return token == expected_secret;
-    }
-
-    if let Some(ref key) = query.server_key {
-        return key == expected_secret;
-    }
-
-    false
+    else {
+        return false;
+    };
+    secrets_equal(token, expected_secret)
 }
 
 /// WebSocket upgrade handler with authentication.
@@ -123,9 +121,8 @@ async fn ws_handler(
     State(state): State<Arc<ServerState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    Query(query): Query<WsQueryParams>,
 ) -> Response {
-    if !validate_auth(&headers, &query, &state.secret) {
+    if !validate_auth(&headers, &state.secret) {
         warn!("Unauthorized connection attempt from {}", addr);
         return (
             StatusCode::UNAUTHORIZED,
@@ -616,7 +613,7 @@ pub async fn run_agent_server(
     let listener = TcpListener::bind(config.bind_addr).await?;
     info!("Agent server listening on ws://{}/ws", config.bind_addr);
     info!(
-        "Clients should connect with: --remote ws://{}:{}/ws --secret <token>",
+        "Clients should connect with Authorization: Bearer <token> to ws://{}:{}/ws",
         config.bind_addr.ip(),
         config.bind_addr.port()
     );

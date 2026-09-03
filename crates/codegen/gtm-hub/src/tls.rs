@@ -123,7 +123,8 @@ fn load_or_create_ca() -> Result<(String, String)> {
         ));
     }
     let mut params = CertificateParams::new(Vec::new())?;
-    params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    // pathlen 0: this CA may sign leaves only, not intermediate CAs.
+    params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
     params.key_usages = vec![
         KeyUsagePurpose::KeyCertSign,
         KeyUsagePurpose::CrlSign,
@@ -294,10 +295,11 @@ pub fn rustls_server_config() -> Result<Arc<rustls::ServerConfig>> {
 }
 
 pub fn default_enroll_path() -> PathBuf {
-    dirs::desktop_dir()
-        .or_else(dirs::home_dir)
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("gtm-hub.enroll")
+    paths::gtm_home().join("gtm-hub.enroll")
+}
+
+pub(crate) fn write_enroll_file(path: &Path, enroll: &EnrollFile) -> Result<()> {
+    write_secret(path, &serde_json::to_string_pretty(enroll)?)
 }
 
 #[cfg(test)]
@@ -318,6 +320,35 @@ mod tests {
         assert_eq!(list_devices().len(), 1);
         assert!(revoke_device(&enroll.device_id).unwrap());
         assert!(list_devices().is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+        unsafe { std::env::remove_var("GTM_HOME") };
+    }
+
+    #[test]
+    fn default_enroll_path_is_under_gtm_home() {
+        let _guard = crate::paths::lock_test_home();
+        let root = std::env::temp_dir().join(format!(
+            "gtm-hub-enroll-path-{}-{}",
+            std::process::id(),
+            now_secs()
+        ));
+        unsafe { std::env::set_var("GTM_HOME", &root) };
+        let path = default_enroll_path();
+        assert_eq!(path, root.join("gtm-hub.enroll"));
+        assert!(!path.to_string_lossy().contains("Desktop"));
+        unsafe { std::env::remove_var("GTM_HOME") };
+    }
+
+    #[test]
+    fn new_ca_is_pathlen_zero() {
+        let _guard = crate::paths::lock_test_home();
+        let root =
+            std::env::temp_dir().join(format!("gtm-hub-ca-{}-{}", std::process::id(), now_secs()));
+        std::fs::create_dir_all(&root).unwrap();
+        unsafe { std::env::set_var("GTM_HOME", &root) };
+        let (ca_pem, _) = load_or_create_ca().unwrap();
+        let params = CertificateParams::from_ca_cert_pem(&ca_pem).unwrap();
+        assert_eq!(params.is_ca, IsCa::Ca(BasicConstraints::Constrained(0)));
         let _ = std::fs::remove_dir_all(&root);
         unsafe { std::env::remove_var("GTM_HOME") };
     }

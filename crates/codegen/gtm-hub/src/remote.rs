@@ -17,10 +17,11 @@ pub struct RemoteArgs {
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum RemoteCommand {
-    /// Write `gtm-hub.enroll` (device cert + CA cert, never the CA key)
+    /// Write `gtm-hub.enroll` under `~/.gtm` (device cert + CA cert, never the CA key)
     Enroll {
         #[arg(long, default_value = "30d")]
         ttl: String,
+        /// Override output path (default: `~/.gtm/gtm-hub.enroll`, mode 0600)
         #[arg(long)]
         out: Option<PathBuf>,
     },
@@ -76,15 +77,7 @@ pub async fn run_remote(args: RemoteArgs) -> Result<()> {
             let secs = parse_ttl(&ttl)?;
             let enroll = tls::issue_device(secs)?;
             let path = out.unwrap_or_else(tls::default_enroll_path);
-            if let Some(dir) = path.parent() {
-                std::fs::create_dir_all(dir)?;
-            }
-            std::fs::write(&path, serde_json::to_string_pretty(&enroll)?)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
-            }
+            tls::write_enroll_file(&path, &enroll)?;
             let mut c = hub_client().await?;
             let info = c.remote_on(Some(enroll.port)).await?;
             println!("wrote {}", path.display());
@@ -161,7 +154,7 @@ fn print_enroll_hint(enroll: &EnrollFile, path: &std::path::Path) {
         enroll.device_id, enroll.hub_id, enroll.host, enroll.port
     );
     println!(
-        "AirDrop {} to the phone. The CA private key is not in this file.",
+        "Copy {} to the phone (file mode 0600). The CA private key is not in this file.",
         path.display()
     );
 }

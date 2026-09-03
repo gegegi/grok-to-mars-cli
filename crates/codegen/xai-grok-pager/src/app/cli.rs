@@ -355,7 +355,8 @@ pub struct ServeArgs {
     /// Address for the server to listen on
     #[arg(long, default_value = "127.0.0.1:2419")]
     pub bind: SocketAddr,
-    /// Secret token for client authentication (auto-generated if not provided)
+    /// Secret token for client authentication (auto-generated if not provided).
+    /// GTM overlay: serve-auth — at least 32 bytes; auto-generated is 256-bit CSPRNG hex.
     #[arg(long, env = "GROK_AGENT_SECRET")]
     pub secret: Option<String>,
     /// Remote agent URL for proxy mode
@@ -365,18 +366,32 @@ pub struct ServeArgs {
     #[command(flatten)]
     pub headless: HeadlessArgs,
 }
+/// GTM overlay: serve-auth — minimum `--secret` / `GROK_AGENT_SECRET` length (256-bit).
+pub const MIN_AGENT_SECRET_BYTES: usize = 32;
+
 impl ServeArgs {
-    /// Get the secret, generating a random one if not provided.
-    pub fn get_secret(&self) -> String {
-        self.secret
-            .clone()
-            .unwrap_or_else(|| generate_random_key(12))
+    /// Return the serve secret, generating a 256-bit CSPRNG hex token when omitted.
+    pub fn get_secret(&self) -> Result<String, String> {
+        match &self.secret {
+            Some(s) if s.len() < MIN_AGENT_SECRET_BYTES => Err(format!(
+                "--secret must be at least {MIN_AGENT_SECRET_BYTES} bytes (256-bit); got {}",
+                s.len()
+            )),
+            Some(s) => Ok(s.clone()),
+            None => Ok(generate_random_key()),
+        }
     }
 }
-/// Generate a random alphanumeric key of the given length.
-fn generate_random_key(len: usize) -> String {
-    let raw = uuid::Uuid::new_v4().to_string().replace('-', "");
-    raw.chars().cycle().take(len).collect()
+/// 32-byte CSPRNG secret, hex-encoded (64 chars).
+fn generate_random_key() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; MIN_AGENT_SECRET_BYTES];
+    rand::rng().fill_bytes(&mut bytes);
+    bytes.iter().fold(String::with_capacity(64), |mut out, b| {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{b:02x}");
+        out
+    })
 }
 /// Arguments for the `agent leader` subcommand.
 #[derive(Debug, clap::Args, Clone)]
@@ -1514,5 +1529,47 @@ mod tests {
             panic!("expected agent subcommand");
         };
         assert_eq!(agent.reasoning_effort.as_deref(), Some("max"));
+    }
+
+    fn parse_serve(argv: &[&str]) -> ServeArgs {
+        let args = PagerArgs::try_parse_from(argv).expect("serve parses");
+        let Command::Agent(agent) = args.command.expect("agent subcommand") else {
+            panic!("expected agent subcommand");
+        };
+        match agent.mode {
+            Some(AgentCmd::Serve(s)) => s,
+            other => panic!("expected serve, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn serve_auto_secret_is_256bit_hex() {
+        let secret = parse_serve(&["grok", "agent", "serve"])
+            .get_secret()
+            .expect("auto secret");
+        assert_eq!(secret.len(), MIN_AGENT_SECRET_BYTES * 2);
+        assert!(secret.chars().all(|c| c.is_ascii_hexdigit()));
+        let other = parse_serve(&["grok", "agent", "serve"])
+            .get_secret()
+            .expect("second auto secret");
+        assert_ne!(secret, other);
+    }
+
+    #[test]
+    fn serve_rejects_short_secret() {
+        let short = "a".repeat(MIN_AGENT_SECRET_BYTES - 1);
+        let err = parse_serve(&["grok", "agent", "serve", "--secret", &short])
+            .get_secret()
+            .expect_err("short secret");
+        assert!(err.contains("32 bytes"), "{err}");
+    }
+
+    #[test]
+    fn serve_accepts_32_byte_secret() {
+        let ok = "b".repeat(MIN_AGENT_SECRET_BYTES);
+        let secret = parse_serve(&["grok", "agent", "serve", "--secret", &ok])
+            .get_secret()
+            .expect("32-byte secret");
+        assert_eq!(secret, ok);
     }
 }

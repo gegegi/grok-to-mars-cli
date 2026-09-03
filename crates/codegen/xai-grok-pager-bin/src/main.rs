@@ -159,17 +159,22 @@ fn resolve_agent_profile_path(path: &std::path::Path) -> std::path::PathBuf {
     }
 }
 /// Print startup information for the serve command.
+///
+/// GTM overlay: serve-auth — never put the secret in the URL (query strings
+/// leak via logs, history, and Referer). Print the token only when stderr is a TTY.
 fn print_serve_startup_info(bind_addr: SocketAddr, secret: &str) {
+    use std::io::IsTerminal;
     eprintln!();
     eprintln!("   Grok agent server starting...");
     eprintln!();
-    eprintln!("   Address:  {}:{}", bind_addr.ip(), bind_addr.port());
-    eprintln!("   Secret:   {}", secret);
-    eprintln!();
-    eprintln!(
-        "   WebSocket URL: ws://{}/ws?server-key={}",
-        bind_addr, secret
-    );
+    eprintln!("   Address:       {}:{}", bind_addr.ip(), bind_addr.port());
+    eprintln!("   WebSocket URL: ws://{bind_addr}/ws");
+    eprintln!("   Auth:          Authorization: Bearer <token>");
+    if std::io::stderr().is_terminal() {
+        eprintln!("   Secret:        {secret}");
+    } else {
+        eprintln!("   Secret:        (not printed; stderr is not a TTY)");
+    }
     eprintln!();
 }
 /// Entrypoint tag for `grok -p`; keys the quiet stderr default in `init_tracing_simple`.
@@ -1516,7 +1521,14 @@ async fn run_agent_command(
         Some(AgentCmd::Serve(a)) => {
             let mut agent_config = agent_config.clone();
             apply_headless_args_to_config(&a.headless, &mut agent_config);
-            let secret = a.get_secret();
+            // GTM overlay: serve-auth — reject short --secret; do not embed it in a URL.
+            let secret = match a.get_secret() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    std::process::exit(1);
+                }
+            };
             let server_config = xai_grok_shell::agent::ServerConfig {
                 bind_addr: a.bind,
                 secret: secret.clone(),
@@ -1898,6 +1910,7 @@ fn is_gtm_cli() -> bool {
     invoked_cli_name() == "gtm"
 }
 
+// GTM overlay: hub-tui — pump between the local hub socket and this TUI.
 #[cfg(unix)]
 async fn gtm_hub_tui_pump(
     mut client: gtm_hub::HubClient,
@@ -2062,8 +2075,8 @@ fn main() {
     if let Some(code) = xai_grok_pager::voice::maybe_run_capture_subprocess() {
         std::process::exit(code);
     }
-    // Fork-owned hub: intercept before upstream clap so grok-pager Command
-    // enum does not grow a Hub variant (easier upstream merges).
+    // GTM overlay: hub-cli — intercept before upstream clap so grok-pager
+    // Command does not grow a Hub variant (easier upstream merges).
     if matches!(
         std::env::args().nth(1).as_deref(),
         Some("hub") | Some("remote")
@@ -2550,6 +2563,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
         } else {
             None
         };
+    // GTM overlay: hub-tui — attach only when argv0 is `gtm`.
     #[cfg(unix)]
     let gtm_hub_bridge = if is_gtm_cli() {
         match gtm_hub::attach_tui().await {

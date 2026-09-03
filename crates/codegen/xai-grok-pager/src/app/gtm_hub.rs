@@ -1,5 +1,7 @@
 //! Optional GTM hub bridge: TUI hosts the live session so a phone prompt
 //! runs in this process and `session/update` fans back out.
+//!
+//! GTM overlay: hub-tui — this file is fork-added inside an upstream crate.
 
 use serde_json::Value;
 use tokio::sync::mpsc;
