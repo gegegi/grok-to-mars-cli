@@ -19,13 +19,13 @@ impl TurnEffortCommand {
     }
 
     fn usage_string(&self) -> String {
-        format!("/{} <prompt>", self.level.as_str())
+        format!("/{} <prompt>", self.level.as_ref())
     }
 }
 
 impl SlashCommand for TurnEffortCommand {
     fn name(&self) -> &str {
-        self.level.as_str()
+        self.level.as_ref()
     }
 
     fn description(&self) -> &str {
@@ -87,10 +87,10 @@ impl SlashCommand for TurnEffortCommand {
 
         match ctx
             .models
-            .resolve_effort_for_model(&model_id, self.level.as_str())
+            .resolve_effort_for_model(&model_id, self.level.as_ref())
         {
             Ok(effort) => CommandResult::InjectSkill {
-                display_text: format!("/{} {prompt}", self.level.as_str()),
+                display_text: format!("/{} {prompt}", self.level.as_ref()),
                 prompt_blocks: vec![acp::ContentBlock::Text(acp::TextContent::new(
                     prompt.to_string(),
                 ))],
