@@ -129,6 +129,18 @@ Not an upstream grok-build source file. Workspace `Cargo.toml` **is** regenerate
 
 If upstream bumps `aws-sdk-s3` / `ratatui` off `lru ^0.12`, delete the patch and the vendor dir.
 
+### `terminal-theme` — transparent `/theme` on by default
+
+Upstream 1.0.24 ships Terminal (`transparent` / `native`) behind a gradual remote rollout (`default_enabled: false`). Official `grok` hides it until `terminal_theme_enabled` or `GROK_TERMINAL_THEME=1`.
+
+Keep GTM on without that wait:
+
+| File | What to keep |
+|------|----------------|
+| `crates/codegen/xai-grok-config-types/src/registry.rs` | `Feature::TerminalTheme` `default_enabled: true`. |
+| `crates/codegen/xai-grok-pager/src/app/mod.rs` | `resolve_terminal_theme_enabled` ignores remote `false`. Pin / env / config still win. |
+| `crates/codegen/xai-grok-pager/docs/user-guide/06-theming.md` | Note that GTM enables it by default. |
+
 ---
 
 ## Not overlays (fork-owned)
@@ -149,4 +161,4 @@ In Rust/TOML/markdown that sits on an upstream path:
 GTM overlay: <id> — <one-line keep rule>
 ```
 
-`<id>` must match a heading above (`serve-auth`, `gtm-bin`, `hub-cli`, `hub-tui`, `turn-effort`, `branding`, `lru-iter-mut`).
+`<id>` must match a heading above (`serve-auth`, `gtm-bin`, `hub-cli`, `hub-tui`, `turn-effort`, `branding`, `lru-iter-mut`, `terminal-theme`).

@@ -244,7 +244,8 @@ pub const FEATURES: &[FeatureSpec] = &[
         key: "terminal_theme",
         path: "features.terminal_theme",
         env: "GROK_TERMINAL_THEME",
-        default_enabled: false,
+        // GTM overlay: terminal-theme — 1.0.24 transparent theme is on without xAI rollout.
+        default_enabled: true,
         remote: Some(|settings| settings.terminal_theme_enabled),
     },
 ];

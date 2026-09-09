@@ -32,7 +32,9 @@ theme = "terminal"
 
 Contrast is only as good as your terminal profile: a profile with a very dark bright-black slot will render faint dividers, since Grok derives everything from your palette rather than hard-coding colors.
 
-The theme is rolling out gradually. Until the rollout reaches your account it is hidden from `/theme` and `/settings`, its names do not parse, and a configured `theme = "terminal"` falls back to the default theme. Set `GROK_TERMINAL_THEME=1` (or `[features] terminal_theme = true` in `config.toml`) to enable it locally ahead of the rollout.
+The theme is rolling out gradually on official `grok`. Until the rollout reaches your account it is hidden from `/theme` and `/settings`, its names do not parse, and a configured `theme = "terminal"` falls back to the default theme. Set `GROK_TERMINAL_THEME=1` (or `[features] terminal_theme = true` in `config.toml`) to enable it locally ahead of the rollout.
+
+<!-- GTM overlay: terminal-theme — Grok to Mars enables this theme by default. Set `GROK_TERMINAL_THEME=0` or `[features] terminal_theme = false` to hide it. -->
 
 ### Minimal Mode Has No Theming
 

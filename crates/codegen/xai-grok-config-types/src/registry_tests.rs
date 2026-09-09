@@ -76,7 +76,7 @@ fn registered_settings() {
                 ("GROK_REPO_STATUS_IN_SYSTEM_PROMPT", true),
             ),
             ("dock", ("GROK_DOCK", false)),
-            ("terminal_theme", ("GROK_TERMINAL_THEME", false)),
+            ("terminal_theme", ("GROK_TERMINAL_THEME", true)),
         ]),
     );
 }

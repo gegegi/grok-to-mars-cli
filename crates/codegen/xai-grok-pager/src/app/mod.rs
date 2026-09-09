@@ -226,13 +226,14 @@ fn terminal_theme_requirement_pin() -> Option<bool> {
 fn terminal_theme_config_value() -> Option<bool> {
     terminal_theme_flag_in(&xai_grok_shell::config::load_effective_config().ok()?)
 }
-/// Registry precedence: pin, `GROK_TERMINAL_THEME`, config, remote `terminal_theme_enabled`, default off.
+/// Registry precedence: pin, `GROK_TERMINAL_THEME`, config, then default on.
+/// GTM overlay: terminal-theme — ignore xAI's gradual remote hide so `/theme transparent` works.
 pub(crate) fn resolve_terminal_theme_enabled(remote: Option<bool>) -> bool {
     use xai_grok_shell::agent::config::{Feature, FeatureSources};
     let mut sources = FeatureSources::from_process_env(Feature::TerminalTheme);
     sources.pin = terminal_theme_requirement_pin();
     sources.config = terminal_theme_config_value();
-    sources.remote = remote;
+    sources.remote = remote.filter(|on| *on);
     Feature::TerminalTheme.resolve(sources).value
 }
 pub(crate) fn voice_mode_enabled() -> bool {
