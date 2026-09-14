@@ -1,6 +1,7 @@
 //! Installed grok CLI version, kept in sync with the shipping binaries.
 
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use semver::Version;
 
@@ -15,6 +16,18 @@ pub const VERSION: &str = match option_env!("GROK_VERSION") {
     Some(v) => v,
     None => env!("CARGO_PKG_VERSION"),
 };
+
+/// Official Grok Build crate / `GROK_VERSION` stamp. Distinct from [`gtm_version`].
+pub const GROK_BUILD_VERSION: &str = VERSION;
+
+/// GTM overlay: gtm-version — fork semver in repo-root `GTM_VERSION` (not Cargo.toml).
+const GTM_VERSION_RAW: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../GTM_VERSION"));
+
+/// Grok to Mars CLI version. Independent of [`GROK_BUILD_VERSION`].
+pub fn gtm_version() -> &'static str {
+    GTM_VERSION_RAW.trim()
+}
 
 /// The release pipeline always injects `GROK_VERSION`; without it the build is from source.
 pub const IS_DEV_BUILD: bool = option_env!("GROK_VERSION").is_none();
@@ -32,6 +45,52 @@ pub fn set_full_version(v: &'static str) {
 /// The injected version-with-commit string, or plain [`VERSION`] when no binary has called [`set_full_version`] (e.g. lib tests, dev harnesses).
 pub fn full_version() -> &'static str {
     FULL_VERSION.get().copied().unwrap_or(VERSION)
+}
+
+static GTM_FULL_VERSION: OnceLock<&'static str> = OnceLock::new();
+static IS_GTM_CLI: AtomicBool = AtomicBool::new(false);
+
+/// Record that this process is the `gtm` binary (not official `grok`).
+pub fn set_gtm_cli(on: bool) {
+    IS_GTM_CLI.store(on, Ordering::Relaxed);
+}
+
+pub fn is_gtm_cli() -> bool {
+    IS_GTM_CLI.load(Ordering::Relaxed)
+}
+
+/// Inject `gtm`'s `"<gtm-version> (<shortcommit>)"` stamp. First set wins.
+pub fn set_gtm_full_version(v: &'static str) {
+    let _ = GTM_FULL_VERSION.set(v);
+}
+
+pub fn gtm_full_version() -> &'static str {
+    GTM_FULL_VERSION.get().copied().unwrap_or_else(gtm_version)
+}
+
+/// `--version` text: `gtm` prints its own line plus the Grok Build base.
+pub fn product_version_text(channel_label: &str) -> String {
+    if is_gtm_cli() {
+        format!(
+            "gtm {}\nGrok Build {}\n",
+            gtm_full_version(),
+            GROK_BUILD_VERSION
+        )
+    } else {
+        format!(
+            "grok {}\n",
+            display_version_with_commit(full_version(), channel_label)
+        )
+    }
+}
+
+/// One-line chrome (session info, pager banner) without a trailing newline.
+pub fn product_version_line(channel_label: &str) -> String {
+    if is_gtm_cli() {
+        format!("{} (Grok Build {})", gtm_full_version(), GROK_BUILD_VERSION)
+    } else {
+        display_version_with_commit(full_version(), channel_label)
+    }
 }
 
 /// Returns the [`TEST_VERSION_ENV`] override when set, otherwise [`VERSION`].
@@ -96,5 +155,26 @@ mod tests {
         assert_eq!(full_version(), "first (aaaaaaa)");
         set_full_version("second (bbbbbbb)");
         assert_eq!(full_version(), "first (aaaaaaa)");
+    }
+
+    #[test]
+    fn gtm_version_is_semver_and_not_grok_build() {
+        let gtm = gtm_version();
+        assert!(Version::parse(gtm).is_ok(), "GTM_VERSION={gtm:?}");
+        assert_ne!(gtm, GROK_BUILD_VERSION);
+    }
+
+    #[test]
+    fn product_version_text_splits_gtm_from_grok_build() {
+        set_gtm_cli(true);
+        set_gtm_full_version("0.1.0 (deadbeefcafebabe)");
+        let text = product_version_text(" [alpha]");
+        assert!(text.starts_with("gtm 0.1.0 (deadbeefcafebabe)\n"), "{text:?}");
+        assert!(text.contains(&format!("Grok Build {GROK_BUILD_VERSION}")), "{text:?}");
+        assert!(!text.contains("[alpha]"), "{text:?}");
+        set_gtm_cli(false);
+        let grok = product_version_text(" [stable]");
+        assert!(grok.starts_with("grok "), "{grok:?}");
+        assert!(grok.contains("[stable]"), "{grok:?}");
     }
 }

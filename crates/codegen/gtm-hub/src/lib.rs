@@ -33,7 +33,7 @@ pub use server::{run_on, run_on_with};
 pub async fn attach_tui() -> Result<HubClient> {
     let mut client = connect_or_spawn().await?;
     client
-        .hello("tui", "gtm", env!("CARGO_PKG_VERSION"))
+        .hello("tui", "gtm", xai_grok_version::gtm_version())
         .await?;
     Ok(client)
 }

@@ -4926,6 +4926,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tracing",
+ "xai-grok-version",
 ]
 
 [[package]]

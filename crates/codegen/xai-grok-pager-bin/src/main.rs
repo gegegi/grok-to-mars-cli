@@ -1180,10 +1180,7 @@ async fn run_agent_command(
         eprintln!(
             "{} (pager) - v{}",
             xai_grok_version::DISPLAY_NAME,
-            xai_grok_version::display_version_with_commit(
-                env!("VERSION_WITH_COMMIT"),
-                xai_grok_update::channel_label(),
-            )
+            xai_grok_version::product_version_line(xai_grok_update::channel_label()),
         );
         if should_check_for_updates(no_auto_update) {
             auto_update::run_update_if_available(
@@ -2045,14 +2042,7 @@ async fn gtm_hub_tui_pump(
     }
 }
 fn version_text(channel_label: &str) -> String {
-    format!(
-        "{} {}\n",
-        invoked_cli_name(),
-        xai_grok_version::display_version_with_commit(
-            xai_grok_version::full_version(),
-            channel_label,
-        )
-    )
+    xai_grok_version::product_version_text(channel_label)
 }
 fn write_version(writer: &mut impl std::io::Write, channel_label: &str) -> std::io::Result<()> {
     writer.write_all(version_text(channel_label).as_bytes())
@@ -2082,6 +2072,8 @@ fn dispatch_doctor_if_requested(args: &PagerArgs) -> bool {
 }
 fn main() {
     xai_grok_version::set_full_version(env!("VERSION_WITH_COMMIT"));
+    xai_grok_version::set_gtm_full_version(env!("GTM_VERSION_WITH_COMMIT"));
+    xai_grok_version::set_gtm_cli(is_gtm_cli());
     xai_grok_telemetry::startup::mark_process_start();
     if let Some(code) = xai_grok_pager::app::mermaid_worker::maybe_run_render_subprocess() {
         std::process::exit(code);
@@ -2990,6 +2982,7 @@ mod tests {
     }
     #[test]
     fn version_output_writer_preserves_channel_aware_contract() {
+        xai_grok_version::set_gtm_cli(false);
         xai_grok_version::set_full_version(env!("VERSION_WITH_COMMIT"));
         for (label, expected_suffix) in [
             (" [alpha]", " [alpha]\n"),

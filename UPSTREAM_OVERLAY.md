@@ -129,6 +129,17 @@ Not an upstream grok-build source file. Workspace `Cargo.toml` **is** regenerate
 
 If upstream bumps `aws-sdk-s3` / `ratatui` off `lru ^0.12`, delete the patch and the vendor dir.
 
+### `gtm-version` — independent GTM semver
+
+Keep crate `version = "1.0.24"` (etc.) as the Grok Build merge. `gtm --version` reads repo-root `GTM_VERSION`.
+
+| File | What to keep |
+|------|----------------|
+| `GTM_VERSION` | Fork-owned semver. Bump here, not in upstream Cargo.toml. |
+| `crates/codegen/xai-grok-version/src/lib.rs` | `gtm_version()`, `product_version_text`, `set_gtm_cli`. `VERSION` stays Grok Build. |
+| `crates/codegen/xai-grok-pager-bin/build.rs` | `GTM_VERSION_WITH_COMMIT`. |
+| `crates/codegen/xai-grok-pager-bin/src/main.rs` | `gtm --version` two-line report. |
+
 ### `terminal-theme` — transparent `/theme` on by default
 
 Upstream 1.0.24 ships Terminal (`transparent` / `native`) behind a gradual remote rollout (`default_enabled: false`). Official `grok` hides it until `terminal_theme_enabled` or `GROK_TERMINAL_THEME=1`.
@@ -149,7 +160,7 @@ These paths are **absent** from `xai-org/grok-build`. Merge will not touch them 
 
 - `crates/codegen/gtm-hub/**` (Unix hub, LAN mTLS, enroll). Enroll default `~/.gtm/gtm-hub.enroll` (0600) and CA `BasicConstraints::Constrained(0)` live **here**, not in grok-build.
 - `scripts/install-gtm.sh`
-- `SOURCE_REV`, this file
+- `SOURCE_REV`, `GTM_VERSION`, this file
 
 ---
 
@@ -161,4 +172,4 @@ In Rust/TOML/markdown that sits on an upstream path:
 GTM overlay: <id> — <one-line keep rule>
 ```
 
-`<id>` must match a heading above (`serve-auth`, `gtm-bin`, `hub-cli`, `hub-tui`, `turn-effort`, `branding`, `lru-iter-mut`, `terminal-theme`).
+`<id>` must match a heading above (`serve-auth`, `gtm-bin`, `hub-cli`, `hub-tui`, `turn-effort`, `branding`, `lru-iter-mut`, `terminal-theme`, `gtm-version`).

@@ -568,10 +568,7 @@ async fn bounded_connect(
     let context = || startup_failure::Context {
         target,
         attempt,
-        version: xai_grok_version::display_version_with_commit(
-            xai_grok_version::full_version(),
-            xai_grok_update::channel_label(),
-        ),
+        version: xai_grok_version::product_version_line(xai_grok_update::channel_label()),
         log_path: xai_grok_telemetry::unified_log::path(),
     };
     tokio::select! {

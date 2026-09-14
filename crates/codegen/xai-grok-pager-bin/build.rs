@@ -13,6 +13,7 @@ fn git_stdout(args: &[&str]) -> Option<String> {
 
 fn main() {
     println!("cargo:rerun-if-env-changed=GROK_VERSION");
+    println!("cargo:rerun-if-changed=../../../GTM_VERSION");
 
     // Watch the git files that change on commit/checkout so the version stamp refreshes
     // Never emit a missing path: cargo treats it as always dirty and rebuilds this crate every build
@@ -36,4 +37,14 @@ fn main() {
         .unwrap_or_else(|_| "0.0.0".to_string());
 
     println!("cargo:rustc-env=VERSION_WITH_COMMIT={version} ({commit})");
+
+    // GTM overlay: gtm-version — independent of grok-build CARGO_PKG_VERSION.
+    let gtm_version = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../GTM_VERSION"),
+    )
+    .ok()
+    .map(|s| s.trim().to_string())
+    .filter(|s| !s.is_empty())
+    .unwrap_or_else(|| "0.0.0".to_string());
+    println!("cargo:rustc-env=GTM_VERSION_WITH_COMMIT={gtm_version} ({commit})");
 }

@@ -25,6 +25,7 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 tracing = { workspace = true }
+xai-grok-version = { workspace = true }
 rcgen = { workspace = true, features = ["x509-parser"] }
 rustls = { workspace = true }
 tokio-rustls = "0.26"

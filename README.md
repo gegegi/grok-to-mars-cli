@@ -47,10 +47,11 @@ Upstream README, changelog, and source:
 | | Official Grok Build | This fork (Grok To Mars) |
 | --- | --- | --- |
 | Command | `grok` | `gtm` |
+| Version | crate / `GROK_VERSION` (e.g. 1.0.24) | [`GTM_VERSION`](GTM_VERSION) (independent; `gtm --version` also prints the Grok Build base) |
 | Typical path | `~/.grok/bin/grok` | `~/.local/bin/gtm` |
 | Source | [xai-org/grok-build](https://github.com/xai-org/grok-build) | this repository |
 | Install | [x.ai/cli](https://x.ai/cli) | [`scripts/install-gtm.sh`](scripts/install-gtm.sh) |
-| Updates | `grok update` | rebuild with `scripts/install-gtm.sh` (`gtm update` is disabled on purpose) |
+| Updates | `grok update` | bump `GTM_VERSION`, rebuild with `scripts/install-gtm.sh` (`gtm update` is disabled on purpose) |
 
 `gtm` still authenticates against the same Grok services as the official CLI.
 
@@ -68,7 +69,9 @@ Relative to upstream Grok Build, this tree currently adds:
   Official `grok` sessions are **not** shared this way — see [Remote hub](#remote-hub).
 
 Everything else is Grok Build, merged from upstream. The root `SOURCE_REV`
-file records the monorepo commit SHA of the last official sync.
+file records the monorepo commit SHA of the last official sync. `GTM_VERSION`
+is this fork's semver; crate `version` fields stay on the Grok Build number so
+`git merge upstream/main` does not fight the fork.
 
 Edits that sit **inside upstream files** (pager, shell, workspace `Cargo.toml`, …)
 are catalogued in [`UPSTREAM_OVERLAY.md`](UPSTREAM_OVERLAY.md) so a

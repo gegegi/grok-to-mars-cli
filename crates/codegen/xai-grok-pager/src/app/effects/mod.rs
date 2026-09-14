@@ -5174,7 +5174,7 @@ fn session_info_fields(
     }
     push(
         "Shell version",
-        xai_grok_version::display_version(xai_grok_update::channel_label()),
+        xai_grok_version::product_version_line(xai_grok_update::channel_label()),
         false,
     );
     push("Session ID", info.session_id.to_string(), false);
