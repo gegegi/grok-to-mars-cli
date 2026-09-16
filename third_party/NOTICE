@@ -68,6 +68,16 @@ Copyright:  Copyright (c) 2016 Jerome Froelich
 Local patch: GHSA-rhfx-m35p-ff5j IterMut `&K` instead of `&mut K` (from 0.16.3)
 
 --------------------------------------------------------------------------------
+fuser
+--------------------------------------------------------------------------------
+Path:       third_party/fuser/
+License:    MIT
+License file: third_party/fuser/LICENSE.md
+Upstream:   https://github.com/cberner/fuser (v0.18.0 @ 9c957f74efe715112049298cdf1d601781829c8d)
+Copyright:  Copyright (c) 2020-present Christopher Berner;
+            Copyright 2013-2019 Andreas Neuhaus (see LICENSE.md)
+
+--------------------------------------------------------------------------------
 End of notices for vendored third_party/ crates.
 
 Full product notices (all crates.io / git dependencies shipped with the Grok
