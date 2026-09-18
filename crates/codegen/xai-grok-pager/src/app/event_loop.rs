@@ -10,6 +10,7 @@ use super::session_load_barrier::{
     AcpDrainArm, SessionLoadAcpTick, SessionLoadBarrier, session_load_agent_id,
 };
 use super::{PagerArgs, PagerTerminal, acp_handler, dispatch, effects};
+use crate::app::reader_thread::ReaderThread;
 use crate::appearance::ConfigWatcher;
 use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 use crate::render::draw::{EscapeWriter, WriterDrain, WriterEvent};
@@ -42,7 +43,7 @@ pub(crate) struct TimedInputEvent {
     pub(super) arrived_at: std::time::Instant,
 }
 impl TimedInputEvent {
-    fn now(event: Event) -> Self {
+    pub(super) fn now(event: Event) -> Self {
         Self {
             event,
             arrived_at: std::time::Instant::now(),
@@ -1043,6 +1044,7 @@ pub(crate) async fn run(
     >,
     mut writer_event_rx: tokio::sync::mpsc::UnboundedReceiver<WriterEvent>,
     mut gtm_hub: Option<crate::app::GtmHubBridge>,
+    reader_thread: &mut ReaderThread,
 ) -> anyhow::Result<RunResult> {
     crate::unified_log::init(connection.tx.clone());
     crate::unified_log::info("pager started", None, None);
@@ -1619,52 +1621,9 @@ pub(crate) async fn run(
         );
     }
     let live_input_started_at = std::time::Instant::now();
-    let reader_input_tx = input_tx;
     let input_paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let reader_paused = input_paused.clone();
     let reader_parked = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let reader_parked_thread = reader_parked.clone();
-    std::thread::spawn(move || {
-        use std::sync::atomic::Ordering;
-        const POLL_TIMEOUT: Duration = Duration::from_millis(20);
-        let mut consecutive_event_errors: u32 = 0;
-        loop {
-            if reader_input_tx.is_closed() {
-                break;
-            }
-            if reader_paused.load(Ordering::Acquire) {
-                reader_parked_thread.store(true, Ordering::Release);
-                std::thread::sleep(POLL_TIMEOUT);
-                continue;
-            }
-            reader_parked_thread.store(false, Ordering::Release);
-            let event = match crossterm::event::poll(POLL_TIMEOUT) {
-                Ok(true) => crossterm::event::read(),
-                Ok(false) => continue,
-                Err(e) => Err(e),
-            };
-            match event {
-                Ok(ev) => {
-                    consecutive_event_errors = 0;
-                    let timed = TimedInputEvent::now(ev);
-                    if reader_input_tx.send(timed).is_err() {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    consecutive_event_errors += 1;
-                    if consecutive_event_errors >= 50 {
-                        tracing::error!(
-                            "crossterm read returned {consecutive_event_errors} \
-                             consecutive errors, exiting reader: {e}"
-                        );
-                        break;
-                    }
-                    tracing::warn!("crossterm read error (skipping): {e}");
-                }
-            }
-        }
-    });
+    *reader_thread = ReaderThread::spawn(input_tx, input_paused.clone(), reader_parked.clone());
     let mut acp_rx = connection.rx;
     let mut gtm_remote_prompts: std::collections::HashMap<String, serde_json::Value> =
         std::collections::HashMap::new();
@@ -3918,12 +3877,21 @@ pub(crate) fn retarget_suppress_code_restore(app: &mut AppView, from: &str, to: 
         app.suppress_code_restore_once = Some(to.into());
     }
 }
+fn session_create_or_load(effs: &[super::actions::Effect]) -> bool {
+    effs.iter().any(|e| {
+        matches!(
+            e,
+            Effect::CreateSession { .. }
+                | Effect::CreateWorktreeSession { .. }
+                | Effect::LoadSession { .. }
+        )
+    })
+}
 /// Shared [`SessionFlags`] builder (interactive loop and leader-cluster).
 /// Permission seeds come from the global mirrors (`default_yolo`, `current_ui.permission_mode`).
 /// Create meta therefore sees the post-mode values without effect-shape sniffing.
 pub(crate) fn session_flags_for_effects(
     app: &mut AppView,
-    #[cfg_attr(not(feature = "local-workspace"), allow(unused_variables))]
     effs: &[super::actions::Effect],
 ) -> effects::SessionFlags {
     effects::SessionFlags {
@@ -3932,6 +3900,8 @@ pub(crate) fn session_flags_for_effects(
         ask_user: app.ask_user,
         restore_code: take_load_restore_code(app, effs),
         agent_override: app.agent_override.clone(),
+        defer_builtin_agent_profile: session_create_or_load(effs)
+            && crate::views::agents_modal::config_agent_is_explicit(),
         yolo_mode: app.default_yolo,
         auto_mode: super::dispatch::effective_auto(
             app.default_yolo,
@@ -4231,7 +4201,8 @@ fn process_effects(
     progress_tx: &tokio::sync::mpsc::UnboundedSender<effects::RestoreProgressMsg>,
 ) -> bool {
     let flags = session_flags_for_effects(app, &effs);
-    for eff in effs {
+    let mut effs = effs.into_iter().peekable();
+    while let Some(eff) = effs.next() {
         if matches!(eff, super::actions::Effect::ResetMouseReporting) {
             if crate::app::MOUSE_CAPTURE_ENABLED.load(std::sync::atomic::Ordering::Acquire) {
                 app.escape_writer
@@ -4241,6 +4212,10 @@ fn process_effects(
             }
             continue;
         }
+        let Some(eff) = effects::take_coalesced_interjects(eff, &mut effs, tasks, &app.acp_tx)
+        else {
+            continue;
+        };
         let (quit, meta) = effects::execute(eff, tasks, &app.acp_tx, &app.cwd, &flags, progress_tx);
         if let Some((seq, abort_handle)) = meta.auth_abort_handle
             && let super::app_view::AuthState::Authenticating {
@@ -4596,6 +4571,7 @@ mod tests {
             model_id: None,
             permission_mode_override: None,
             preferred_session_id: None,
+            minted_session_id: None,
             chat_kind: false,
         };
         assert!(welcome_oneshot_applies_to_effects(std::slice::from_ref(
@@ -4858,6 +4834,7 @@ mod tests {
             model_id: None,
             permission_mode_override: None,
             preferred_session_id: None,
+            minted_session_id: None,
             chat_kind: false,
         };
         assert_eq!(

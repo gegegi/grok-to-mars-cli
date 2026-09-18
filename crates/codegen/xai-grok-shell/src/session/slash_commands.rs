@@ -104,20 +104,12 @@ pub(super) const BUILTIN_COMMANDS: &[BuiltinCommand] = &[
     BuiltinCommand {
         name: "memory",
         description: "Browse, view, and manage your memories",
-        argument_hint: Some("on|off"),
+        argument_hint: None,
         aliases: &["mem"],
         model_authored_eligibility: ModelAuthoredEligibility::Denied,
         gate: BuiltinGate::MemoryConfigured,
         workflow_projection: WorkflowProjection::None,
-        resolve: |args| {
-            let trimmed = args.trim().to_lowercase();
-            match trimmed.as_str() {
-                "on" | "enable" => BuiltinAction::MemoryToggle { enabled: true },
-                "off" | "disable" => BuiltinAction::MemoryToggle { enabled: false },
-                "status" => BuiltinAction::MemoryStatus,
-                _ => BuiltinAction::MemoryBrowse,
-            }
-        },
+        resolve: |_args| BuiltinAction::MemoryBrowse,
     },
     BuiltinCommand {
         name: "context",
@@ -473,6 +465,7 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "delete",
     "docs",
     "doctor",
+    "dream",
     "edit-prompt",
     "effort",
     "exit",
@@ -480,6 +473,7 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "export",
     "feedback",
     "find",
+    "flush",
     "fork",
     "full",
     "fullscreen",
@@ -509,6 +503,8 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "marketplace",
     "mcps",
     "medium",
+    "mem",
+    "memory",
     "minimal",
     "ml",
     "model",
@@ -1256,10 +1252,6 @@ pub(super) enum BuiltinAction {
         text: String,
     },
     MemoryBrowse,
-    MemoryStatus,
-    MemoryToggle {
-        enabled: bool,
-    },
     GoalSet {
         objective: String,
         token_budget: Option<i64>,
@@ -1304,8 +1296,6 @@ impl BuiltinAction {
             BuiltinAction::PluginsUpdate { .. } => "plugins-update",
             BuiltinAction::Feedback { .. } => "feedback",
             BuiltinAction::MemoryBrowse => "memory",
-            BuiltinAction::MemoryStatus => "memory",
-            BuiltinAction::MemoryToggle { .. } => "memory",
             BuiltinAction::GoalSet { .. }
             | BuiltinAction::GoalStatus
             | BuiltinAction::GoalPause
@@ -1339,8 +1329,6 @@ impl BuiltinAction {
             BuiltinAction::PluginsUpdate { name } => name.is_some(),
             BuiltinAction::Feedback { text } => !text.is_empty(),
             BuiltinAction::MemoryBrowse => false,
-            BuiltinAction::MemoryStatus => true,
-            BuiltinAction::MemoryToggle { .. } => true,
             BuiltinAction::GoalSet { .. } => true,
             BuiltinAction::GoalStatus
             | BuiltinAction::GoalPause
